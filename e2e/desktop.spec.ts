@@ -197,3 +197,35 @@ test("inline display: the calendar in place, the time as a pill on its own row",
   await timePopup(page).getByRole("radio", { name: "AM" }).click();
   await expect(value(page)).toHaveText("Sep 9, 2026 6:30 AM");
 });
+
+test("motion is wired: popover spring, month slide, month/year cross-fade, thumb slide", async ({
+  page,
+}) => {
+  await open(page);
+  await dateTrigger(page).click();
+  const popup = datePopup(page);
+  await expect
+    .poll(() => popup.evaluate((el) => getComputedStyle(el).animationName))
+    .toBe("cdp-pop-in");
+  await popup.getByRole("button", { name: "Next month" }).click();
+  const grid = popup.getByRole("grid");
+  await expect(grid).toHaveAttribute("data-dir", "1");
+  expect(await grid.evaluate((el) => getComputedStyle(el).animationName)).toBe(
+    "cdp-slide-from-right",
+  );
+  const wheels = popup.locator('[data-slot="month-year"]');
+  expect(await wheels.evaluate((el) => getComputedStyle(el).opacity)).toBe("0");
+  await popup.getByRole("button", { name: /October 2026/ }).click();
+  await expect.poll(() => wheels.evaluate((el) => getComputedStyle(el).opacity)).toBe("1");
+  expect(await wheels.evaluate((el) => getComputedStyle(el).transitionDuration)).toContain("0.2s");
+  await page.keyboard.press("Escape");
+
+  await timeTrigger(page).click();
+  const thumb = timePopup(page).locator('[data-slot="segmented-control"] > div').first();
+  expect(await thumb.evaluate((el) => getComputedStyle(el).transitionProperty)).toContain(
+    "transform",
+  );
+  const before = await thumb.evaluate((el) => getComputedStyle(el).transform);
+  await timePopup(page).getByRole("radio", { name: "AM" }).click();
+  await expect.poll(() => thumb.evaluate((el) => getComputedStyle(el).transform)).not.toBe(before);
+});
