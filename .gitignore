@@ -1,0 +1,8 @@
+node_modules
+dist
+public/r
+test-results
+playwright-report
+e2e/__screenshots__
+.DS_Store
+*.local
