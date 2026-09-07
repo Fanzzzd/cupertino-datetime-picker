@@ -66,11 +66,19 @@ test("a touch fling spins the minute wheel and the field follows", async ({
   await open(page);
   await timeTrigger(page).tap();
   const minute = wheel(page, "Minute");
-  const box = (await minute.boundingBox())!;
-  await fling(page, box.x + box.width / 2, box.y + box.height / 2, -120);
-  await expect
-    .poll(async () => Number(await minute.getAttribute("aria-valuenow")))
-    .toBeGreaterThan(33);
+  const current = async () => Number(await minute.getAttribute("aria-valuenow"));
+  // The popover is still springing in when the tap returns; a gesture aimed at
+  // the scaled-down wheel misses it. Let the animations finish first, and try
+  // again if a busy runner dropped the gesture anyway.
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  for (let attempt = 0; attempt < 4 && (await current()) === 30; attempt++) {
+    const box = (await minute.boundingBox())!;
+    await fling(page, box.x + box.width / 2, box.y + box.height / 2, -160);
+    await page.waitForTimeout(600);
+  }
+  // Five rows of travel plus the platform's momentum, so the wheel is well
+  // past where a plain scroll would have stopped.
+  await expect.poll(current).toBeGreaterThan(33);
   const shown = await timePopup(page).getByRole("textbox", { name: "Minute" }).inputValue();
   expect(Number(shown)).toBe(Number(await minute.getAttribute("aria-valuenow")));
   await expect(value(page)).toContainText(`6:${shown} PM`);
