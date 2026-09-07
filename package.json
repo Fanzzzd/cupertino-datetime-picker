@@ -52,7 +52,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint && oxfmt --check .",
     "fmt": "oxfmt .",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm registry:build",
     "docs": "pnpm -C docs dev",
     "docs:build": "pnpm -C docs build",
     "docs:typecheck": "pnpm -C docs typecheck",
