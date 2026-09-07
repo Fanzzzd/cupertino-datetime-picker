@@ -85,20 +85,34 @@ export function monthGrid(year: number, month: number, weekStart: number): DayCe
   );
 }
 
-type WeekInfo = { firstDay: number };
-type LocaleWithWeekInfo = Intl.Locale & {
-  getWeekInfo?: () => WeekInfo;
-  weekInfo?: WeekInfo;
-};
-
 /** First day of the week for a locale, 0 = Sunday … 6 = Saturday. */
 export function weekStartFor(locale: string): number {
-  try {
-    const l = new Intl.Locale(locale) as LocaleWithWeekInfo;
-    const info = l.getWeekInfo?.() ?? l.weekInfo;
-    if (info) return info.firstDay % 7;
-  } catch {
-    // Unknown tag: fall through to the heuristic.
-  }
+  const firstDay = readFirstDay(locale);
+  if (firstDay !== undefined) return firstDay % 7;
   return /^(en-(US|CA|AU)|ja|ko|zh-(TW|HK)|he|pt-BR|es-(MX|US))\b/i.test(locale) ? 0 : 1;
+}
+
+/**
+ * `Intl.Locale#getWeekInfo` (or the older `weekInfo` getter) where the engine
+ * has it, read without assuming either exists in the type library.
+ */
+function readFirstDay(locale: string): number | undefined {
+  let l: object;
+  try {
+    l = new Intl.Locale(locale);
+  } catch {
+    return undefined;
+  }
+  const info: unknown =
+    "getWeekInfo" in l && typeof l.getWeekInfo === "function"
+      ? l.getWeekInfo()
+      : "weekInfo" in l
+        ? l.weekInfo
+        : undefined;
+  return typeof info === "object" &&
+    info !== null &&
+    "firstDay" in info &&
+    typeof info.firstDay === "number"
+    ? info.firstDay
+    : undefined;
 }
