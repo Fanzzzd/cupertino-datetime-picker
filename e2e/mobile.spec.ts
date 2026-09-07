@@ -20,15 +20,22 @@ async function swipe(page: Page, from: { x: number; y: number }, to: { x: number
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 }
 
+// A finger flick: touch events paced like a real one, through the browser's
+// own gesture detector, so the scroll and its momentum are Chromium's. (It
+// also works in a headless runner, where `Input.synthesizeScrollGesture`
+// produces nothing.)
 async function fling(page: Page, x: number, y: number, distance: number) {
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send("Input.synthesizeScrollGesture", {
-    x,
-    y,
-    yDistance: distance,
-    gestureSourceType: "touch",
-    speed: 1200,
-  });
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: point({ x, y }) });
+  const steps = 8;
+  for (let i = 1; i <= steps; i++) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: point({ x, y: y + (distance * i) / steps }),
+    });
+    await page.waitForTimeout(8);
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
 }
 
 test("the popover fits the phone and a tap picks a day", async ({ page }) => {
@@ -67,20 +74,37 @@ test("a touch fling spins the minute wheel and the field follows", async ({
   await timeTrigger(page).tap();
   const minute = wheel(page, "Minute");
   const current = async () => Number(await minute.getAttribute("aria-valuenow"));
+  const top = () => minute.evaluate((el) => el.scrollTop);
   // The popover is still springing in when the tap returns; a gesture aimed at
   // the scaled-down wheel misses it. Let the animations finish first, and try
-  // again if a busy runner dropped the gesture anyway.
+  // again if a busy runner dropped the gesture anyway. A dropped gesture is
+  // one that left the scroller where it was, not one whose value has not
+  // settled yet: a second flick on a spinning wheel stops it.
   await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
-  for (let attempt = 0; attempt < 4 && (await current()) === 30; attempt++) {
+  const start = await top();
+  for (let attempt = 0; attempt < 4 && (await top()) === start; attempt++) {
     const box = (await minute.boundingBox())!;
     await fling(page, box.x + box.width / 2, box.y + box.height / 2, -160);
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(300);
   }
-  // Five rows of travel plus the platform's momentum, so the wheel is well
-  // past where a plain scroll would have stopped.
-  await expect.poll(current).toBeGreaterThan(33);
+  // Let the momentum run out: the value holds still for half a second.
+  await expect
+    .poll(
+      async () => {
+        const before = await current();
+        await page.waitForTimeout(500);
+        return before !== 30 && before === (await current());
+      },
+      { timeout: 10_000 },
+    )
+    .toBe(true);
+  // Five rows of finger travel, plus whatever momentum the runner's frame
+  // pacing allows (a throttled CPU gives none). The wheel wraps, so count the
+  // rows travelled rather than compare values.
+  const travelled = ((await current()) - 30 + 60) % 60;
+  expect(travelled).toBeGreaterThanOrEqual(4);
   const shown = await timePopup(page).getByRole("textbox", { name: "Minute" }).inputValue();
-  expect(Number(shown)).toBe(Number(await minute.getAttribute("aria-valuenow")));
+  expect(Number(shown)).toBe(await current());
   await expect(value(page)).toContainText(`6:${shown} PM`);
 });
 

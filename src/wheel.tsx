@@ -78,6 +78,11 @@ export function Wheel({
     onChangeRef.current = onChange;
     valueRef.current = value;
   });
+  // A scroll the wheel started itself (a typed value, a set prop, a key).
+  // Until the scroller gets there a settle means nothing: reporting the row
+  // it is passing would hand back a stale value, and on a busy main thread
+  // that report could land after the real one and win.
+  const arriving = React.useRef<{ physical: number; lastTop: number; nudges: number } | null>(null);
 
   // Only a different row is a change: settling where the wheel already was
   // (including the first layout) must not write anything.
@@ -112,8 +117,10 @@ export function Wheel({
   const scrollToIndex = (physical: number, smooth: boolean) => {
     const el = scroller.current;
     if (!el) return;
+    const target = clamp(physical, 0, maxIndex);
+    arriving.current = { physical: target, lastTop: -1, nudges: 0 };
     el.scrollTo({
-      top: clamp(physical, 0, maxIndex) * itemHeight,
+      top: target * itemHeight,
       behavior: smooth && !reduceMotion ? "smooth" : "auto",
     });
   };
@@ -122,6 +129,23 @@ export function Wheel({
   const settle = () => {
     const el = scroller.current;
     if (!el || drag.current || fling.current) return;
+    const a = arriving.current;
+    if (a && snapIndex(el.scrollTop, itemHeight) !== a.physical) {
+      if (el.scrollTop !== a.lastTop) {
+        // Still on its way; look again once it has had time to move.
+        a.lastTop = el.scrollTop;
+        window.clearTimeout(settleTimer.current);
+        settleTimer.current = window.setTimeout(settle, 120);
+        return;
+      }
+      if (a.nudges < 3) {
+        // The same spot twice: the animation was cut short. Send it again.
+        a.nudges += 1;
+        el.scrollTo({ top: a.physical * itemHeight, behavior: reduceMotion ? "auto" : "smooth" });
+        return;
+      }
+    }
+    arriving.current = null;
     let idx = snapIndex(el.scrollTop, itemHeight);
     if (loop) {
       const centred = base + mod(idx, len);
@@ -156,11 +180,8 @@ export function Wheel({
     if (options.at(mod(resting.current, len))?.value === value) return;
     const physical = loop ? nearestCopy(selected, resting.current, len, copies) : selected;
     resting.current = physical;
-    scroller.current?.scrollTo({
-      top: physical * itemHeight,
-      behavior: reduceMotion ? "auto" : "smooth",
-    });
-  }, [value, options, len, loop, selected, copies, itemHeight, reduceMotion, resting, scroller]);
+    scrollToIndex(physical, true);
+  });
 
   const onScroll = () => {
     paint();
@@ -176,6 +197,8 @@ export function Wheel({
 
   // Mouse drag: the browser gives touch a fling for free, the mouse needs one.
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // A finger or a pointer on the wheel takes over from any scroll in flight.
+    arriving.current = null;
     if (e.pointerType !== "mouse" || e.button !== 0) return;
     const el = e.currentTarget;
     cancelAnimationFrame(fling.current);
@@ -307,6 +330,7 @@ export function Wheel({
       data-slot="wheel"
       onScroll={onScroll}
       onScrollEnd={onScrollEnd}
+      onWheel={() => (arriving.current = null)}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
