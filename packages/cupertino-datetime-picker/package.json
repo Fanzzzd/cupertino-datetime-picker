@@ -1,6 +1,6 @@
 {
   "name": "cupertino-datetime-picker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "iOS-style compact date & time picker for React: an inline calendar with month/year wheels, and time wheels that also take typing. Built for shadcn/ui on Base UI.",
   "keywords": [
     "base-ui",
