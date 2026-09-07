@@ -271,7 +271,7 @@ export function CalendarPanel({
                   onClick={() => pick(date)}
                   onFocus={() => setFocusDate(date)}
                   className={cn(
-                    "mx-auto flex size-10 items-center justify-center rounded-full text-[20px] leading-none tabular-nums transition-[background-color,transform] duration-150 outline-none active:scale-90 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--cdp-bg)] disabled:opacity-30",
+                    "mx-auto flex size-10 items-center justify-center rounded-full text-[20px] leading-none tabular-nums transition-transform duration-150 outline-none active:scale-90 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--cdp-bg)] disabled:opacity-30",
                     selected
                       ? isToday
                         ? "bg-[var(--cdp-tint)] font-semibold text-[var(--cdp-on-tint)]"
