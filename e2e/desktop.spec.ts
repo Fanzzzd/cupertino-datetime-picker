@@ -229,3 +229,23 @@ test("motion is wired: popover spring, month slide, month/year cross-fade, thumb
   await timePopup(page).getByRole("radio", { name: "AM" }).click();
   await expect.poll(() => thumb.evaluate((el) => getComputedStyle(el).transform)).not.toBe(before);
 });
+
+test("opening the clock writes nothing until something changes", async ({ page }) => {
+  await open(page);
+  let changes = 0;
+  await page.exposeFunction("cdpCount", () => changes++);
+  await page.evaluate(() => {
+    const out = document.querySelector('[data-testid="value"]')!;
+    new MutationObserver(() => (window as unknown as { cdpCount: () => void }).cdpCount()).observe(
+      out,
+      { childList: true, subtree: true, characterData: true },
+    );
+  });
+  await timeTrigger(page).click();
+  await expect(wheel(page, "Minute")).toHaveAttribute("aria-valuenow", "30");
+  await page.waitForTimeout(500);
+  expect(changes).toBe(0);
+  await wheel(page, "Minute").focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(value(page)).toHaveText("Sep 5, 2026 6:31 PM");
+});

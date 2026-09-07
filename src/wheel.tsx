@@ -73,9 +73,18 @@ export function Wheel({
   // Timers and animation frames call back after this render; give them the
   // latest handler rather than the one they closed over.
   const onChangeRef = React.useRef(onChange);
+  const valueRef = React.useRef(value);
   React.useLayoutEffect(() => {
     onChangeRef.current = onChange;
+    valueRef.current = value;
   });
+
+  // Only a different row is a change: settling where the wheel already was
+  // (including the first layout) must not write anything.
+  const report = (physical: number) => {
+    const option = optionAt(physical);
+    if (option && option.value !== valueRef.current) onChangeRef.current(option.value);
+  };
 
   const optionAt = (physical: number) => options.at(mod(physical, len));
 
@@ -122,15 +131,13 @@ export function Wheel({
       }
     }
     resting.current = idx;
-    const option = optionAt(idx);
-    if (option) onChangeRef.current(option.value);
+    report(idx);
   };
 
   const go = (physical: number, smooth = true) => {
     const target = clamp(physical, 0, maxIndex);
     resting.current = target;
-    const option = optionAt(target);
-    if (option) onChangeRef.current(option.value);
+    report(target);
     scrollToIndex(target, smooth);
   };
 
