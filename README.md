@@ -16,7 +16,7 @@ As a shadcn registry item (the source lands in your project, under
 `components/ui/cupertino/`):
 
 ```sh
-npx shadcn@latest add https://cupertino-datetime-picker.pages.dev/r/cupertino-datetime-picker.json
+npx shadcn@latest add https://raw.githubusercontent.com/fanzzzd/cupertino-datetime-picker/main/public/r/cupertino-datetime-picker.json
 ```
 
 Or from npm:

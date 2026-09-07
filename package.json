@@ -2,7 +2,28 @@
   "name": "cupertino-datetime-picker",
   "version": "0.1.0",
   "description": "iOS-style compact date & time picker for React: an inline calendar with month/year wheels, and time wheels that also take typing. Built for shadcn/ui on Base UI.",
+  "keywords": [
+    "base-ui",
+    "cupertino",
+    "date-picker",
+    "datetime-picker",
+    "ios",
+    "react",
+    "shadcn",
+    "tailwind",
+    "time-picker",
+    "wheel-picker"
+  ],
+  "homepage": "https://github.com/fanzzzd/cupertino-datetime-picker#readme",
+  "bugs": {
+    "url": "https://github.com/fanzzzd/cupertino-datetime-picker/issues"
+  },
   "license": "MIT",
+  "author": "fanzzzd",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fanzzzd/cupertino-datetime-picker.git"
+  },
   "files": [
     "dist",
     "src",
