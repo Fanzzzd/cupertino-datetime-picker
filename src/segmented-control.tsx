@@ -60,7 +60,8 @@ export function SegmentedControl<T extends string | number | boolean>({
               name={name}
               checked={checked}
               onChange={() => onChange(option.value)}
-              className="sr-only"
+              // Covers the label so the radio itself is the hit target.
+              className="absolute inset-0 cursor-pointer appearance-none opacity-0"
             />
             {option.label}
           </label>
