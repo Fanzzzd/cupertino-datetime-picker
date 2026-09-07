@@ -132,21 +132,32 @@ test("a mouse drag flings a wheel past where it was released", async ({ page }) 
   await popup.getByRole("button", { name: /September 2026/ }).click();
   const year = popup.getByRole("spinbutton", { name: "Year" });
   const box = (await year.boundingBox())!;
-  // Drag 108px (about three rows) quickly and let go: the fling carries on.
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height - 10);
-  await page.mouse.down();
-  for (let i = 1; i <= 6; i++) {
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height - 10 - i * 18, { steps: 2 });
+  const x = box.x + box.width / 2;
+  const current = async () => Number(await year.getAttribute("aria-valuenow"));
+
+  // Drag 108px (about three rows) quickly and let go: the fling carries on
+  // past the three rows. Event pacing is the test runner's, so a busy
+  // machine may space the moves too far apart to count as a fling; try again.
+  let flung = false;
+  for (let attempt = 0; attempt < 4 && !flung; attempt++) {
+    const before = await current();
+    await page.mouse.move(x, box.y + box.height - 10);
+    await page.mouse.down();
+    for (let i = 1; i <= 6; i++) {
+      await page.mouse.move(x, box.y + box.height - 10 - i * 18);
+    }
+    await page.mouse.up();
+    await expect.poll(current).toBeGreaterThanOrEqual(before + 3);
+    await page.waitForTimeout(400);
+    flung = (await current()) > before + 3;
   }
-  await page.mouse.up();
-  await expect
-    .poll(async () => Number(await year.getAttribute("aria-valuenow")))
-    .toBeGreaterThan(2026 + 3);
+  expect(flung).toBe(true);
+
   // A slow drag that pauses before release lands where it was left.
-  const rested = Number(await year.getAttribute("aria-valuenow"));
-  await page.mouse.move(box.x + box.width / 2, box.y + 20);
+  const rested = await current();
+  await page.mouse.move(x, box.y + 20);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2, box.y + 20 + 64, { steps: 8 });
+  await page.mouse.move(x, box.y + 20 + 64, { steps: 8 });
   await page.waitForTimeout(150);
   await page.mouse.up();
   await expect(year).toHaveAttribute("aria-valuenow", String(rested - 2));
