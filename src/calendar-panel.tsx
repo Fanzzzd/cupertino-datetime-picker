@@ -136,17 +136,17 @@ export function CalendarPanel({
 
   const onGridKeyDown = (e: React.KeyboardEvent) => {
     const f = focusDate;
-    const jump: Record<string, () => Date> = {
-      ArrowLeft: () => addDays(f, -1),
-      ArrowRight: () => addDays(f, 1),
-      ArrowUp: () => addDays(f, -7),
-      ArrowDown: () => addDays(f, 7),
-      Home: () => addDays(f, -((f.getDay() - weekStart + 7) % 7)),
-      End: () => addDays(f, 6 - ((f.getDay() - weekStart + 7) % 7)),
-      PageUp: () => addMonths(f, e.shiftKey ? -12 : -1),
-      PageDown: () => addMonths(f, e.shiftKey ? 12 : 1),
-    };
-    const to = jump[e.key];
+    const jump = new Map<string, () => Date>([
+      ["ArrowLeft", () => addDays(f, -1)],
+      ["ArrowRight", () => addDays(f, 1)],
+      ["ArrowUp", () => addDays(f, -7)],
+      ["ArrowDown", () => addDays(f, 7)],
+      ["Home", () => addDays(f, -((f.getDay() - weekStart + 7) % 7))],
+      ["End", () => addDays(f, 6 - ((f.getDay() - weekStart + 7) % 7))],
+      ["PageUp", () => addMonths(f, e.shiftKey ? -12 : -1)],
+      ["PageDown", () => addMonths(f, e.shiftKey ? 12 : 1)],
+    ]);
+    const to = jump.get(e.key);
     if (!to) return;
     e.preventDefault();
     moveFocus(to());
@@ -240,6 +240,7 @@ export function CalendarPanel({
           <div
             ref={grid}
             role="grid"
+            tabIndex={-1}
             aria-label={formatMonthYear(viewDate, locale)}
             key={`${view.year}-${view.month}`}
             data-dir={dir}

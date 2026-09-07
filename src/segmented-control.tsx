@@ -6,7 +6,8 @@ export type SegmentedOption<T> = { value: T; label: string };
 
 /**
  * The iOS segmented control: a translucent track with a white thumb that
- * slides to the chosen segment. Arrow keys move it; it is a radio group.
+ * slides to the chosen segment. Underneath it is a native radio group, so
+ * arrow keys, focus and form semantics come from the browser.
  */
 export function SegmentedControl<T extends string | number | boolean>({
   options,
@@ -21,28 +22,16 @@ export function SegmentedControl<T extends string | number | boolean>({
   "aria-label": string;
   className?: string;
 }) {
+  const name = React.useId();
   const index = Math.max(
     0,
     options.findIndex((o) => o.value === value),
   );
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    const by =
-      e.key === "ArrowRight" || e.key === "ArrowDown"
-        ? 1
-        : e.key === "ArrowLeft" || e.key === "ArrowUp"
-          ? -1
-          : 0;
-    if (!by) return;
-    e.preventDefault();
-    const next = options[(index + by + options.length) % options.length];
-    if (next) onChange(next.value);
-  };
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
       data-slot="segmented-control"
-      onKeyDown={onKeyDown}
       className={cn(
         "relative inline-grid h-8 auto-cols-fr grid-flow-col rounded-[9px] bg-[var(--cdp-fill)] p-0.5",
         className,
@@ -59,20 +48,22 @@ export function SegmentedControl<T extends string | number | boolean>({
       {options.map((option) => {
         const checked = option.value === value;
         return (
-          <button
+          <label
             key={String(option.value)}
-            type="button"
-            role="radio"
-            aria-checked={checked}
-            tabIndex={checked ? 0 : -1}
-            onClick={() => onChange(option.value)}
             className={cn(
-              "relative z-10 min-w-12 rounded-[7px] px-3 text-[13px] font-semibold transition-colors outline-none",
+              "relative z-10 flex min-w-12 cursor-pointer items-center justify-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors select-none has-focus-visible:ring-2 has-focus-visible:ring-[var(--cdp-tint)]",
               checked ? "text-[var(--cdp-label)]" : "text-[var(--cdp-label)]/80 active:opacity-60",
             )}
           >
+            <input
+              type="radio"
+              name={name}
+              checked={checked}
+              onChange={() => onChange(option.value)}
+              className="sr-only"
+            />
             {option.label}
-          </button>
+          </label>
         );
       })}
     </div>

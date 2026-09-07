@@ -1,8 +1,7 @@
 import * as React from "react";
 
 import { usePrefersReducedMotion } from "./hooks";
-import { clamp, mod } from "./utils";
-import { cn } from "./utils";
+import { clamp, cn, mod } from "./utils";
 import { easeOutCubic, flingTarget, nearestCopy, snapIndex } from "./wheel-math";
 
 export type WheelOption = { value: number; label: string };
@@ -78,7 +77,7 @@ export function Wheel({
     onChangeRef.current = onChange;
   });
 
-  const optionAt = (physical: number) => options[mod(physical, len)];
+  const optionAt = (physical: number) => options.at(mod(physical, len));
 
   // Depth: rows tilt away from the centre, like the drum of a real picker.
   const paint = () => {
@@ -147,7 +146,7 @@ export function Wheel({
   // The value changed from outside (typed into the field, or set by the app).
   React.useEffect(() => {
     if (drag.current || fling.current) return;
-    if (options[mod(resting.current, len)]?.value === value) return;
+    if (options.at(mod(resting.current, len))?.value === value) return;
     const physical = loop ? nearestCopy(selected, resting.current, len, copies) : selected;
     resting.current = physical;
     scroller.current?.scrollTo({
@@ -286,7 +285,7 @@ export function Wheel({
     e.preventDefault();
   };
 
-  const current = options[selected];
+  const current = options.at(selected);
 
   return (
     <div
@@ -296,8 +295,8 @@ export function Wheel({
       aria-label={ariaLabel}
       aria-valuenow={current?.value}
       aria-valuetext={current?.label}
-      aria-valuemin={options[0]?.value}
-      aria-valuemax={options[len - 1]?.value}
+      aria-valuemin={options.at(0)?.value}
+      aria-valuemax={options.at(-1)?.value}
       data-slot="wheel"
       onScroll={onScroll}
       onScrollEnd={onScrollEnd}
@@ -314,10 +313,11 @@ export function Wheel({
     >
       <div aria-hidden style={{ paddingBlock: pad }}>
         {Array.from({ length: len * copies }, (_, i) => {
-          const option = options[i % len];
+          const option = options.at(i % len);
           return (
             <div
               key={i}
+              role="presentation"
               className="flex snap-center items-center justify-center text-[22px] leading-none text-[var(--cdp-secondary)] tabular-nums transition-colors data-active:text-[var(--cdp-label)]"
               style={{ height: itemHeight }}
               onClick={() => {
