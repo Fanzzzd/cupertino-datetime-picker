@@ -16,13 +16,13 @@
   ],
   "homepage": "https://cupertino-datetime-picker-docs.vercel.app",
   "bugs": {
-    "url": "https://github.com/fanzzzd/cupertino-datetime-picker/issues"
+    "url": "https://github.com/Fanzzzd/cupertino-datetime-picker/issues"
   },
   "license": "MIT",
   "author": "fanzzzd",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fanzzzd/cupertino-datetime-picker.git"
+    "url": "git+https://github.com/Fanzzzd/cupertino-datetime-picker.git"
   },
   "files": [
     "dist",
