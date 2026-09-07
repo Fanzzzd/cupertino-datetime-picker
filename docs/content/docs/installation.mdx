@@ -1,0 +1,76 @@
+---
+title: Installation
+description: Add the picker from the shadcn registry or from npm, then point Tailwind at its classes.
+---
+
+## Requirements
+
+- React 19.
+- Tailwind CSS v4. The components are styled with utility classes, so Tailwind
+  has to see their source (both installs below cover that).
+- `@base-ui/react` 1.4 or later, for the popovers.
+
+## From the shadcn registry
+
+The registry item copies the source into your project under
+`components/ui/cupertino/`, the way every shadcn/ui component arrives, and adds
+`@base-ui/react`, `clsx` and `tailwind-merge` if they are missing.
+
+```sh
+npx shadcn@latest add https://cupertino-datetime-picker-docs.vercel.app/r/cupertino-datetime-picker.json
+```
+
+Then import the stylesheet once, in your Tailwind entry. It holds the colour
+tokens, the wheel mask and the popover keyframes.
+
+```css
+@import "tailwindcss";
+@import "./components/ui/cupertino/styles.css";
+```
+
+Import from the copied files:
+
+```tsx
+import { DateTimePicker } from "@/components/ui/cupertino/date-time-picker";
+```
+
+The files are yours. Change the pill radius, drop a panel you do not use, or
+translate the default labels. A later `shadcn add` of the same item asks
+before it overwrites.
+
+## From npm
+
+```sh
+pnpm add cupertino-datetime-picker @base-ui/react
+```
+
+```css
+/* your Tailwind entry */
+@import "tailwindcss";
+@import "cupertino-datetime-picker/styles.css";
+@source "../node_modules/cupertino-datetime-picker/dist";
+```
+
+The `@source` line matters: Tailwind only generates the utilities it finds in
+scanned files, and `node_modules` is skipped by default. Adjust the relative
+path to where your CSS file sits.
+
+```tsx
+import { DateTimePicker } from "cupertino-datetime-picker";
+```
+
+## Fonts
+
+The `.cdp` root class sets the Apple system font stack (`-apple-system`, SF
+Pro, then `system-ui`). To use your app's font instead:
+
+```css
+.cdp {
+  font-family: inherit;
+}
+```
+
+## Next
+
+- [`DateTimePicker`](/docs/date-time-picker) for the component and its props.
+- [Theming](/docs/theming) for the tint and dark mode.

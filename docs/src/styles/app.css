@@ -1,0 +1,9 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+@import "../../../src/styles.css";
+
+/* Make Tailwind aware of Fumadocs UI class names. */
+@source "../../node_modules/fumadocs-ui/dist/**/*.js";
+/* The picker's utility classes live in the library source. */
+@source "../../../src";

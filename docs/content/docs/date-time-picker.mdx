@@ -1,0 +1,123 @@
+---
+title: DateTimePicker
+description: The compact picker, a date pill and a time pill that each open a panel, or the same panels laid out inline.
+---
+
+<DateTimeDemo />
+
+```tsx
+import { DateTimePicker } from "@/components/ui/cupertino/date-time-picker";
+
+const [date, setDate] = useState<Date | null>(null);
+
+<DateTimePicker value={date} onChange={setDate} />;
+```
+
+## Value
+
+The value is a `Date | null`. Pass `value` and `onChange` to control it, or
+`defaultValue` to let the picker own it. With no value the pills show their
+placeholders and the first pick starts from now.
+
+<EmptyDemo />
+
+Picking a day keeps the clock time; picking a time keeps the day. The `Date`
+you receive is always a new object in local time.
+
+## Mode
+
+`mode` is `UIDatePicker.Mode`: `"date"`, `"time"`, or the default
+`"dateTime"`.
+
+<DateDemo />
+
+<TimeDemo />
+
+## Display
+
+`display="compact"` (the default) renders the pills. `display="inline"` lays
+the calendar out in place, with the time on a "Time" row underneath, the way
+the iOS event editor does.
+
+<InlineDemo />
+
+```tsx
+<DateTimePicker display="inline" />
+```
+
+The inline root has a `--cdp-bg` background and 13px corners but no shadow or
+border, so it sits flat in a list. Add the sheet look with a class:
+
+```tsx
+<DateTimePicker display="inline" className="shadow-[var(--cdp-shadow)]" />
+```
+
+## Locale
+
+`locale` drives every visible string: month and weekday names, the first day of
+the week, the 12- or 24-hour clock, the AM/PM labels, and the pill formats. It
+defaults to `navigator.language`.
+
+<LocaleDemo />
+
+```tsx
+<DateTimePicker locale="de-DE" />
+```
+
+`hourCycle` overrides the clock the locale implies.
+
+<HourCycleDemo />
+
+```tsx
+<DateTimePicker locale="en-US" hourCycle="h23" />
+```
+
+## Minute interval
+
+`minuteInterval` sets the minute wheel step, like `UIDatePicker.minuteInterval`.
+Typing still accepts any minute; the wheel settles on the nearest step.
+
+<IntervalDemo />
+
+```tsx
+<DateTimePicker mode="time" minuteInterval={5} />
+```
+
+## Range
+
+`min` and `max` disable days outside the range. Months you cannot reach are
+not offered by the arrows either.
+
+<RangeDemo />
+
+```tsx
+<DateTimePicker min={addDays(today, -3)} max={addDays(today, 10)} />
+```
+
+## Disabled
+
+<DisabledDemo />
+
+## Props
+
+| Prop             | Type                               | Default              |                                              |
+| ---------------- | ---------------------------------- | -------------------- | -------------------------------------------- |
+| `value`          | `Date \| null`                     |                      | Controlled value.                            |
+| `defaultValue`   | `Date \| null`                     | `null`               | Initial value when uncontrolled.             |
+| `onChange`       | `(date: Date \| null) => void`     |                      | Called with every pick.                      |
+| `mode`           | `"date" \| "time" \| "dateTime"`   | `"dateTime"`         | Which parts are editable.                    |
+| `display`        | `"compact" \| "inline"`            | `"compact"`          | Pills with popovers, or the panels in place. |
+| `locale`         | `string`                           | `navigator.language` | Names, week start, clock, pill formats.      |
+| `hourCycle`      | `"h12" \| "h23"`                   | from `locale`        | 12- or 24-hour clock.                        |
+| `minuteInterval` | `number`                           | `1`                  | Minute wheel step.                           |
+| `min` / `max`    | `Date`                             |                      | Days outside the range are disabled.         |
+| `disabled`       | `boolean`                          | `false`              | Disables the pills.                          |
+| `labels`         | `{ date?: string; time?: string }` | `Date` / `Time`      | Pill placeholders while there is no value.   |
+| `className`      | `string`                           |                      | On the root element.                         |
+
+## Building your own row
+
+The pill and popup styles are exported as `pillClass` and `popupClass`, so a
+row of your own (quick picks plus a calendar, an "Add time" pill that is empty
+until pressed) uses the same panels and looks the same. See [the panels
+page](/docs/panels#a-row-of-your-own).

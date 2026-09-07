@@ -1,0 +1,73 @@
+---
+title: Theming
+description: One tint token, the iOS fills, and dark mode from a `.dark` ancestor.
+---
+
+The stylesheet defines the iOS system palette as custom properties on `:root`,
+and overrides them under `.dark` or `[data-theme="dark"]`. Everything in the
+picker reads from these, so a theme is a handful of declarations.
+
+## Tint
+
+`--cdp-tint` colours the selected day, the open pill, the arrows and the focus
+ring. `--cdp-on-tint` is the text on it.
+
+<TintDemo />
+
+```css
+:root {
+  --cdp-tint: #ff375f;
+}
+```
+
+Set tokens on `:root` or on the `<html>` theme class. The compact popovers
+render in a portal at `<body>`, so a token set on a wrapper reaches the pills
+but not the panels inside the popovers.
+
+## Tokens
+
+| Token              | Light                   | Dark                    |                                               |
+| ------------------ | ----------------------- | ----------------------- | --------------------------------------------- |
+| `--cdp-tint`       | `#007aff`               | `#0a84ff`               | Selection, open pill, arrows, focus.          |
+| `--cdp-tint-fill`  | 14% tint                |                         | Today's circle while another day is selected. |
+| `--cdp-on-tint`    | `#fff`                  |                         | Text on the tint.                             |
+| `--cdp-fill`       | `rgba(120,120,128,.12)` | `rgba(120,120,128,.24)` | Pills, wheel highlight, dividers.             |
+| `--cdp-fill-hover` | `rgba(120,120,128,.2)`  | `rgba(120,120,128,.32)` | Pill hover.                                   |
+| `--cdp-label`      | `#000`                  | `#fff`                  | Primary text.                                 |
+| `--cdp-secondary`  | `rgba(60,60,67,.6)`     | `rgba(235,235,245,.6)`  | Weekday letters, placeholders.                |
+| `--cdp-tertiary`   | `rgba(60,60,67,.3)`     | `rgba(235,235,245,.3)`  | Disabled days.                                |
+| `--cdp-bg`         | `#fff`                  | `#1c1c1e`               | Popover and inline background.                |
+| `--cdp-thumb`      | `#fff`                  | `#636366`               | Segmented control thumb.                      |
+| `--cdp-shadow`     | iOS popover shadow      | deeper                  | Popover shadow.                               |
+
+## Matching a shadcn theme
+
+Map the tokens onto your theme's variables and the picker follows a theme
+switch for free:
+
+```css
+.cdp {
+  font-family: inherit;
+  --cdp-tint: var(--primary);
+  --cdp-on-tint: var(--primary-foreground);
+  --cdp-tint-fill: color-mix(in srgb, var(--primary) 12%, transparent);
+  --cdp-label: var(--foreground);
+  --cdp-bg: var(--popover);
+}
+```
+
+This works because every panel root and popup carries the `cdp` class, which
+is inside the portal too.
+
+## Dark mode
+
+Add `.dark` (or `data-theme="dark"`) to any ancestor, which is what
+shadcn/ui, next-themes and Fumadocs already do on `<html>`. This site's theme
+toggle switches the demos above.
+
+## Motion
+
+Popovers spring in over 260ms and fade out over 140ms; months slide; the
+month title cross-fades into the wheels. Under
+`prefers-reduced-motion: reduce` every animation and transition inside `.cdp`
+collapses to an instant.

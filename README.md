@@ -1,5 +1,9 @@
 # cupertino-datetime-picker
 
+**[Documentation](https://cupertino-datetime-picker-docs.vercel.app)** ·
+**[Installation](https://cupertino-datetime-picker-docs.vercel.app/docs/installation)** ·
+**[npm](https://www.npmjs.com/package/cupertino-datetime-picker)**
+
 The iOS 14+ compact date & time picker, for the web. A date pill and a time
 pill; the date pill opens the inline calendar whose title turns into month and
 year wheels, the time pill opens hour / minute / AM–PM wheels with a typed
@@ -16,7 +20,7 @@ As a shadcn registry item (the source lands in your project, under
 `components/ui/cupertino/`):
 
 ```sh
-npx shadcn@latest add https://raw.githubusercontent.com/fanzzzd/cupertino-datetime-picker/main/public/r/cupertino-datetime-picker.json
+npx shadcn@latest add https://cupertino-datetime-picker-docs.vercel.app/r/cupertino-datetime-picker.json
 ```
 
 Or from npm:
@@ -99,7 +103,8 @@ pnpm dev          # demo at http://localhost:5173
 pnpm test         # vitest: calendar math, clock, segment typing, fling math
 pnpm e2e          # Playwright: desktop Chrome + iPhone 15 (touch flings via CDP)
 pnpm check        # typecheck, lint, tests, build
-pnpm registry:build
+pnpm registry:build   # shadcn registry JSON into docs/public/r
+pnpm docs         # documentation site (Fumadocs) at http://localhost:3000
 ```
 
 ## Not yet

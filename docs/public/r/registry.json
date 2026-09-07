@@ -1,7 +1,7 @@
 {
   "$schema": "https://ui.shadcn.com/schema/registry.json",
   "name": "cupertino-datetime-picker",
-  "homepage": "https://github.com/fanzzzd/cupertino-datetime-picker",
+  "homepage": "https://cupertino-datetime-picker-docs.vercel.app",
   "items": [
     {
       "name": "cupertino-datetime-picker",

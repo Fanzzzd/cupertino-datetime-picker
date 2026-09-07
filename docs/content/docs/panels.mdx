@@ -1,0 +1,115 @@
+---
+title: CalendarPanel and TimePanel
+description: The two panels on their own, for your own popovers, sheets and rows.
+---
+
+<PanelsDemo />
+
+Both panels are plain controlled components: a `value`, an `onChange`, and a
+`locale`. `DateTimePicker` is a thin layer over them that adds the pills and
+popovers; anything it does, you can do with the panels directly.
+
+```tsx
+import { CalendarPanel } from "@/components/ui/cupertino/calendar-panel";
+import { TimePanel } from "@/components/ui/cupertino/time-panel";
+
+<CalendarPanel value={date} onChange={setDate} />
+<TimePanel value={date ?? new Date()} onChange={setDate} />
+```
+
+Neither panel draws a background. Give the container the `cdp` class (font
+and label colour), `bg-[var(--cdp-bg)]`, and the corners and shadow you want.
+
+## CalendarPanel
+
+The iOS inline calendar. The month title opens month and year wheels over the
+grid; next and previous slide the month in; a horizontal swipe changes month;
+the keyboard walks the grid. The panel is 312px wide.
+
+| Prop          | Type                           | Default              |                                                       |
+| ------------- | ------------------------------ | -------------------- | ----------------------------------------------------- |
+| `value`       | `Date \| null`                 |                      | The selected day. `null` selects nothing.             |
+| `onChange`    | `(date: Date) => void`         |                      | Called with the picked day at the value's clock time. |
+| `locale`      | `string`                       | `navigator.language` | Month and weekday names, first day of the week.       |
+| `min` / `max` | `Date`                         |                      | Days outside the range are disabled.                  |
+| `labels`      | `Partial<CalendarPanelLabels>` | English              | Accessible names; see [Labels](#labels).              |
+| `today`       | `Date`                         | `new Date()`         | Injected for tests and stories.                       |
+| `className`   | `string`                       |                      | On the root element.                                  |
+
+A `value` set from outside moves the view to its month. The grid is a
+`role="grid"` of `gridcell` buttons named with the full date, so a screen
+reader hears "Monday, 7 September 2026".
+
+## TimePanel
+
+Time entry the way iOS 14 does it, both halves at once: a field of hour and
+minute segments above hour, minute and AM/PM wheels. Type `930` and the wheels
+spin there; fling a wheel and the digits follow. `value` is never `null`; hand
+it a starting `Date` when there is no time yet.
+
+| Prop             | Type                       | Default              |                                                 |
+| ---------------- | -------------------------- | -------------------- | ----------------------------------------------- |
+| `value`          | `Date`                     |                      | The time shown. The day part is kept as is.     |
+| `onChange`       | `(date: Date) => void`     |                      | Called with the same day at the new clock time. |
+| `locale`         | `string`                   | `navigator.language` | Clock and AM/PM labels.                         |
+| `hourCycle`      | `"h12" \| "h23"`           | from `locale`        | 12- or 24-hour clock.                           |
+| `minuteInterval` | `number`                   | `1`                  | Minute wheel step.                              |
+| `wheels`         | `boolean`                  | `true`               | `false` keeps only the typed field.             |
+| `labels`         | `Partial<TimePanelLabels>` | English              | Accessible names; see [Labels](#labels).        |
+| `className`      | `string`                   |                      | On the root element.                            |
+
+<FieldOnlyDemo />
+
+```tsx
+<TimePanel value={date} onChange={setDate} wheels={false} />
+```
+
+## Labels
+
+Visible text comes from `Intl`, so a locale change translates the panels by
+itself. The accessible names (button labels, wheel names) are English by
+default and are the one thing to translate:
+
+```tsx
+<CalendarPanel
+  labels={{ previousMonth: "Vormonat", nextMonth: "Nächster Monat", month: "Monat", year: "Jahr" }}
+/>
+<TimePanel labels={{ time: "Uhrzeit", hour: "Stunde", minute: "Minute", dayPeriod: "Tageshälfte" }} />
+```
+
+`CALENDAR_LABELS` and `TIME_LABELS` export the defaults, and
+`CalendarPanelLabels` / `TimePanelLabels` are their types.
+
+## A row of your own
+
+`pillClass` and `popupClass` are the compact picker's pill and popover styles.
+With them and a Base UI popover, a row that adds a time only when asked looks
+like the picker's own:
+
+```tsx
+import { Popover } from "@base-ui/react/popover";
+import { pillClass, popupClass } from "@/components/ui/cupertino/date-time-picker";
+import { formatClock, hourCycleFor } from "@/components/ui/cupertino/time";
+import { TimePanel } from "@/components/ui/cupertino/time-panel";
+
+function TimeRow({ value, onChange, locale }) {
+  const hourCycle = hourCycleFor(locale);
+  return (
+    <div className="cdp mx-3 flex h-[52px] items-center justify-between">
+      <span className="text-[17px]">Time</span>
+      <Popover.Root>
+        <Popover.Trigger className={pillClass}>
+          {value ? formatClock(value, locale, hourCycle) : "Add time"}
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Positioner sideOffset={8} align="end">
+            <Popover.Popup className={popupClass}>
+              <TimePanel value={value ?? new Date()} onChange={onChange} locale={locale} />
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
+    </div>
+  );
+}
+```

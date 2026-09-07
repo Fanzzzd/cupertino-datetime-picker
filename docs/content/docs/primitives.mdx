@@ -1,0 +1,83 @@
+---
+title: Wheel and SegmentedControl
+description: One column of an iOS picker, and the AM/PM control, exported for building pickers of your own.
+---
+
+## Wheel
+
+<WheelDemo />
+
+One column of an iOS picker. Scrolling is native with snap points, so touch
+and trackpad flings come from the platform; mouse drag has its own
+deceleration; a click on any row picks it; the keyboard steps with the arrows
+and jumps on typed digits. Rows tilt away from the centre and fade at the
+edges. The centre row is the value.
+
+```tsx
+import { Wheel, WheelHighlight } from "@/components/ui/cupertino/wheel";
+
+const minutes = Array.from({ length: 60 }, (_, m) => ({
+  value: m,
+  label: String(m).padStart(2, "0"),
+}));
+
+<div className="cdp cdp-wheel-mask relative flex justify-center">
+  <WheelHighlight />
+  <Wheel
+    options={minutes}
+    value={minute}
+    onChange={setMinute}
+    loop
+    aria-label="Minute"
+    className="w-16"
+  />
+</div>;
+```
+
+A group of wheels shares one `WheelHighlight`, the translucent bar behind the
+centre row, positioned by a `relative` container. `cdp-wheel-mask` fades the
+top and bottom rows.
+
+| Prop          | Type                                 | Default |                                                      |
+| ------------- | ------------------------------------ | ------- | ---------------------------------------------------- |
+| `options`     | `{ value: number; label: string }[]` |         | The rows, top to bottom.                             |
+| `value`       | `number`                             |         | The centred option's value.                          |
+| `onChange`    | `(value: number) => void`            |         | Called when the wheel settles on a new row.          |
+| `loop`        | `boolean`                            | `false` | Wrap around, like the hour and minute wheels.        |
+| `itemHeight`  | `number`                             | `32`    | Row height in px. Pass the same to `WheelHighlight`. |
+| `visibleRows` | `number`                             | `5`     | Rows shown; the wheel is this many rows tall.        |
+| `aria-label`  | `string`                             |         | Required. The wheel is a `spinbutton`.               |
+| `className`   | `string`                             |         | Set the width here.                                  |
+
+`onChange` fires once per settle, not per pixel, and not when the wheel comes
+to rest where it already was.
+
+## SegmentedControl
+
+<SegmentedDemo />
+
+The iOS segmented control: a translucent track and a thumb that slides to the
+chosen segment. Underneath it is a native radio group, so arrow keys, focus and
+form semantics come from the browser.
+
+```tsx
+import { SegmentedControl } from "@/components/ui/cupertino/segmented-control";
+
+<SegmentedControl
+  options={[
+    { value: "am", label: "AM" },
+    { value: "pm", label: "PM" },
+  ]}
+  value={period}
+  onChange={setPeriod}
+  aria-label="Day period"
+/>;
+```
+
+| Prop         | Type                            |                                     |
+| ------------ | ------------------------------- | ----------------------------------- |
+| `options`    | `{ value: T; label: string }[]` | `T` is a string, number or boolean. |
+| `value`      | `T`                             | The chosen segment.                 |
+| `onChange`   | `(value: T) => void`            |                                     |
+| `aria-label` | `string`                        | Required. Names the radio group.    |
+| `className`  | `string`                        |                                     |

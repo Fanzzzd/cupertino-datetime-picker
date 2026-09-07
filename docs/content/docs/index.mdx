@@ -1,0 +1,65 @@
+---
+title: Overview
+description: The iOS 14+ compact date & time picker for the web. An inline calendar with month and year wheels, and time wheels that also take typing, for shadcn/ui on Base UI.
+---
+
+<DateTimeDemo />
+
+`cupertino-datetime-picker` is `UIDatePicker` in its `.compact` and `.inline`
+styles, rebuilt for React. A date pill and a time pill; the date pill opens the
+inline calendar whose title turns into month and year wheels, the time pill
+opens hour, minute and AM/PM wheels with a typed field above them. Every part
+takes touch, mouse, trackpad and keyboard.
+
+It is built for [shadcn/ui](https://ui.shadcn.com) on
+[Base UI](https://base-ui.com) popovers and Tailwind v4, and it uses no date
+library: `Intl` supplies month names, weekday names, the 12/24-hour clock and
+the first day of the week.
+
+## What you get
+
+- **The compact picker.** [`DateTimePicker`](/docs/date-time-picker) renders
+  the pills and their popovers, or the panels inline. Controlled or
+  uncontrolled, date, time, or both.
+- **The panels on their own.** [`CalendarPanel` and
+  `TimePanel`](/docs/panels) for your own rows, sheets and popovers.
+- **The primitives.** [`Wheel` and `SegmentedControl`](/docs/primitives) for
+  building other pickers.
+- **Source in your project.** The shadcn registry item copies twelve files
+  under `components/ui/cupertino/`. Edit them like any other shadcn
+  component. An npm package exists for projects that prefer a dependency.
+- **One tint token.** `--cdp-tint` re-tints everything; dark mode follows a
+  `.dark` ancestor. See [Theming](/docs/theming).
+
+## What matches iOS
+
+- **Pills.** 34pt tall, 8pt radius, tertiary fill, tint text while open. The
+  popover springs in from its pill.
+- **Calendar.** A "September 2026 ›" title, next and previous in tint,
+  single-letter weekdays, 20pt days in 40pt circles. The selected day is a
+  tinted circle, today is tint text, and a selected today is a filled tint
+  circle. Only the rows the month needs. Months slide in; the title cross-fades
+  the grid into month and year wheels. A horizontal swipe changes month.
+- **Wheels.** Native scrolling with snap points, so touch and trackpad flings
+  are the platform's own. Mouse drag has its own deceleration. Rows tilt away
+  from the centre and fade at the edges. Hour and minute wheels wrap.
+- **Time field.** Hour and minute segments. Digits auto-advance: `945` is
+  9:45, `12` waits for a second digit, `13` becomes 3. Arrows step, `a` and
+  `p` set the period, and the wheels spin to follow. Spin a wheel and the
+  digits follow back. Mobile keypads insert through `beforeinput`, so IMEs
+  work.
+- **Segmented control.** AM/PM with the sliding thumb, on a native radio
+  group.
+
+## Browser support
+
+Evergreen browsers. The fills use `color-mix()`, so the floor is Safari 16.2,
+Chrome 111 and Firefox 113. The Playwright suite runs on desktop Chromium and
+WebKit and on an iPhone 15 viewport in both, with touch flings synthesized
+through CDP.
+
+## Not yet
+
+- Right-to-left locales.
+- A `wheels` display for the date (day / month / year drums).
+- Ranges.

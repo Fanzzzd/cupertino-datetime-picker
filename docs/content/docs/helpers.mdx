@@ -1,0 +1,54 @@
+---
+title: Helpers
+description: The date, clock and typing functions the panels are built on, exported for handling values in your own code.
+---
+
+Everything below is exported from the package root (or, with the registry
+install, from `calendar.ts`, `time.ts` and `segments.ts` under
+`components/ui/cupertino/`). All dates are local time.
+
+## Calendar
+
+| Function                            |                                                              |
+| ----------------------------------- | ------------------------------------------------------------ |
+| `startOfDay(date)`                  | Midnight of the same day.                                    |
+| `isSameDay(a, b)`                   | Same calendar day; `null` and `undefined` never match.       |
+| `daysInMonth(year, month)`          | 28 to 31. Months are 0-based, as in `Date`.                  |
+| `yearMonthOf(date)`                 | `{ year, month }`.                                           |
+| `monthDiff(a, b)`                   | Months from `a` to `b`, as a signed integer.                 |
+| `shiftMonth(ym, by)`                | `{ year, month }` moved by `by` months.                      |
+| `withDay(base, year, month, day)`   | `base`'s clock time on another day.                          |
+| `withTime(base, hours, minutes)`    | `base`'s day at another clock time.                          |
+| `addDays(date, days)`               |                                                              |
+| `addMonths(date, months)`           | Clamps the day, so 31 January plus one month is 28 February. |
+| `isDayDisabled(date, min?, max?)`   | Outside the range, by day.                                   |
+| `monthGrid(year, month, weekStart)` | Weeks of `{ date, inMonth }` cells for the month.            |
+| `weekStartFor(locale)`              | 0 for Sunday, 1 for Monday, from `Intl.Locale`.              |
+
+## Clock and formatting
+
+| Function                                   |                                                       |
+| ------------------------------------------ | ----------------------------------------------------- |
+| `hourCycleFor(locale)`                     | `"h12"` or `"h23"`, what the locale's clock uses.     |
+| `to12(hour24)` / `to24(hour12, pm)`        | Between the clocks.                                   |
+| `dayPeriodLabels(locale)`                  | `{ am, pm }` as the locale writes them.               |
+| `monthNames(locale, style?)`               | Twelve names, `"long"` or `"short"`.                  |
+| `weekdayNames(locale, style?, weekStart?)` | Seven names starting from `weekStart`.                |
+| `formatDay(date, locale)`                  | The date pill: `Sep 7, 2026`.                         |
+| `formatClock(date, locale, hourCycle)`     | The time pill: `9:30 AM` or `09:30`.                  |
+| `formatMonthYear(date, locale)`            | The calendar title: `September 2026`.                 |
+| `formatFullDate(date, locale)`             | A day's accessible name: `Monday, September 7, 2026`. |
+
+## Typing
+
+`typeDigit(buffer, digit, min, max)` is the segment typing rule. It returns
+`{ buffer, value, done }`: what the segment shows, the committed value (or
+`null`), and whether focus should move on. `stepValue(value, by, min, max)`
+steps within the range and wraps at both ends.
+
+```ts
+typeDigit("", "9", 1, 12); // { buffer: "9", value: 9, done: true }
+typeDigit("", "1", 1, 12); // { buffer: "1", value: 1, done: false }
+typeDigit("1", "3", 1, 12); // { buffer: "3", value: 3, done: true }
+stepValue(12, 1, 1, 12); // 1
+```

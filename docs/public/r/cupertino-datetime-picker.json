@@ -3,7 +3,11 @@
   "name": "cupertino-datetime-picker",
   "title": "Cupertino Date & Time Picker",
   "description": "The iOS 14+ compact date & time picker: inline calendar with month/year wheels, time wheels that also take typing. Base UI popovers, Tailwind, no date library.",
-  "dependencies": ["@base-ui/react", "clsx", "tailwind-merge"],
+  "dependencies": [
+    "@base-ui/react",
+    "clsx",
+    "tailwind-merge"
+  ],
   "files": [
     {
       "path": "src/date-time-picker.tsx",

@@ -14,7 +14,7 @@
     "time-picker",
     "wheel-picker"
   ],
-  "homepage": "https://github.com/fanzzzd/cupertino-datetime-picker#readme",
+  "homepage": "https://cupertino-datetime-picker-docs.vercel.app",
   "bugs": {
     "url": "https://github.com/fanzzzd/cupertino-datetime-picker/issues"
   },
@@ -46,13 +46,17 @@
     "dev": "vite",
     "build": "vite build --mode lib",
     "build:demo": "vite build",
-    "registry:build": "shadcn build",
+    "registry:build": "shadcn build -o docs/public/r",
     "test": "vitest run",
     "e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint && oxfmt --check .",
     "fmt": "oxfmt .",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "docs": "pnpm -C docs dev",
+    "docs:build": "pnpm -C docs build",
+    "docs:typecheck": "pnpm -C docs typecheck",
+    "prepublishOnly": "pnpm check"
   },
   "dependencies": {
     "clsx": "^2.1.1",

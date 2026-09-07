@@ -1,11 +1,32 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "react", "unicorn", "import"],
-  "categories": { "correctness": "error", "suspicious": "warn" },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
   "rules": {
     "react/react-in-jsx-scope": "off",
-    "import/no-unassigned-import": "off"
+    "import/no-unassigned-import": "off",
+    "no-underscore-dangle": [
+      "warn",
+      {
+        "allow": ["_splat"]
+      }
+    ]
   },
-  "env": { "browser": true, "es2024": true },
-  "ignorePatterns": ["dist", "dist-demo", "public/r"]
+  "env": {
+    "browser": true,
+    "es2024": true
+  },
+  "ignorePatterns": [
+    "dist",
+    "dist-demo",
+    "docs/public/r",
+    "docs/.source",
+    "docs/.output",
+    "docs/.nitro",
+    "docs/.tanstack",
+    "docs/src/routeTree.gen.ts"
+  ]
 }

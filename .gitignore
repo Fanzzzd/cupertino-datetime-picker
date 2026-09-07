@@ -5,3 +5,4 @@ playwright-report
 e2e/__screenshots__
 .DS_Store
 *.local
+.vercel

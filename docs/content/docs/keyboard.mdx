@@ -1,0 +1,46 @@
+---
+title: Keyboard and accessibility
+description: Every part of the picker works from the keyboard, and each part has the ARIA role a screen reader expects.
+---
+
+## Keys
+
+| Where         | Keys                                                                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Calendar grid | ← → ↑ ↓ move a day or a week. Home / End go to the week's bounds. PageUp / PageDown change month, with Shift a year. Enter or Space picks. |
+| Month title   | Enter or Space opens the month and year wheels; again closes them.                                                                         |
+| Any wheel     | ↑ ↓ one row. PageUp / PageDown five. Home / End. Type a value to jump to it.                                                               |
+| Time field    | Digits fill the segment and advance. ↑ ↓ step. ← → move between segments. `a` / `p` set the period. Backspace clears.                      |
+| AM / PM       | ← → or ↑ ↓ switch, as in any radio group.                                                                                                  |
+| Popover       | Escape closes and returns focus to the pill.                                                                                               |
+
+## Typing a time
+
+The field commits as soon as the digits name a value and moves on when no
+further digit could fit:
+
+- `9` `4` `5` gives 9:45. The `9` cannot start a two-digit hour, so focus moves
+  to minutes at once.
+- `1` `2` waits: `1` can still become 10, 11 or 12.
+- `1` `3` on a 12-hour clock gives 3. `13` is not an hour, so the field starts
+  over with the `3`.
+- On a 24-hour clock the same rules apply with 0 to 23.
+
+## Roles
+
+- The calendar is a `grid` of `gridcell` buttons. Each is named with the full
+  date in the locale, and carries `aria-selected`, `aria-disabled` and
+  `aria-current="date"` for today.
+- Each wheel is a `spinbutton` with `aria-valuenow`, `aria-valuemin`,
+  `aria-valuemax` and `aria-valuetext` (the visible label).
+- The time segments are text inputs with `inputmode="numeric"`, so phones
+  show the number pad.
+- The AM/PM control is a `radiogroup` of native radios.
+- Popovers come from Base UI: focus moves in on open and back to the pill on
+  close, and Escape and outside-press close them.
+
+## Touch
+
+Wheels scroll natively with `scroll-snap`, so a flick decelerates the way the
+platform decelerates. A horizontal swipe on the calendar changes month. Pills
+and days have no 300ms tap delay and no tap highlight.

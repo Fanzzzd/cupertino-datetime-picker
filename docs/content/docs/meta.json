@@ -1,0 +1,17 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "---Get started---",
+    "index",
+    "installation",
+    "---Components---",
+    "date-time-picker",
+    "panels",
+    "primitives",
+    "---Guides---",
+    "theming",
+    "keyboard",
+    "---Reference---",
+    "helpers"
+  ]
+}

@@ -1,0 +1,7 @@
+packages:
+  - docs
+
+# esbuild's postinstall only re-checks the binary its platform package already
+# ships; nothing here needs it to run.
+allowBuilds:
+  esbuild: false
