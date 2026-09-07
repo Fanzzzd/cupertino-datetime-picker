@@ -1,90 +1,31 @@
 {
-  "name": "cupertino-datetime-picker",
-  "version": "0.1.0",
-  "description": "iOS-style compact date & time picker for React: an inline calendar with month/year wheels, and time wheels that also take typing. Built for shadcn/ui on Base UI.",
-  "keywords": [
-    "base-ui",
-    "cupertino",
-    "date-picker",
-    "datetime-picker",
-    "ios",
-    "react",
-    "shadcn",
-    "tailwind",
-    "time-picker",
-    "wheel-picker"
-  ],
-  "homepage": "https://cupertino-datetime-picker-docs.vercel.app",
-  "bugs": {
-    "url": "https://github.com/fanzzzd/cupertino-datetime-picker/issues"
-  },
-  "license": "MIT",
-  "author": "fanzzzd",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/fanzzzd/cupertino-datetime-picker.git"
-  },
-  "files": [
-    "dist",
-    "src",
-    "registry.json"
-  ],
+  "name": "cupertino-datetime-picker-monorepo",
+  "private": true,
   "type": "module",
-  "sideEffects": [
-    "*.css"
-  ],
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./styles.css": "./src/styles.css"
-  },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build --mode lib",
-    "build:demo": "vite build",
-    "registry:build": "shadcn build -o docs/public/r",
-    "test": "vitest run",
-    "e2e": "playwright test",
-    "typecheck": "tsc --noEmit",
+    "dev": "pnpm --filter cupertino-datetime-picker dev",
+    "docs": "pnpm --filter docs dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "e2e": "pnpm --filter cupertino-datetime-picker e2e",
     "lint": "oxlint && oxfmt --check .",
     "fmt": "oxfmt .",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm registry:build",
-    "docs": "pnpm -C docs dev",
-    "docs:build": "pnpm -C docs build",
-    "docs:typecheck": "pnpm -C docs typecheck",
-    "prepublishOnly": "pnpm check"
-  },
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^3.6.0"
+    "lint:package": "pnpm --filter cupertino-datetime-picker lint:package",
+    "check:docs": "node scripts/check-docs-imports.mjs",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm lint:package && pnpm check:docs",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish"
   },
   "devDependencies": {
-    "@base-ui/react": "1.8.0",
-    "@playwright/test": "1.61.1",
-    "@tailwindcss/vite": "4.3.3",
-    "@types/node": "^24.13.3",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.7",
-    "@vitejs/plugin-react": "6.1.1",
+    "@changesets/changelog-github": "^1.0.0",
+    "@changesets/cli": "^3.0.1",
     "oxfmt": "0.66.0",
-    "oxlint": "1.81.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "shadcn": "4.21.0",
-    "tailwindcss": "4.3.3",
-    "typescript": "^5.9.0",
-    "vite": "8.2.2",
-    "vite-plugin-dts": "5.1.0",
-    "vitest": "5.0.0"
+    "oxlint": "1.81.0"
   },
-  "peerDependencies": {
-    "@base-ui/react": ">=1.4.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+  "engines": {
+    "node": ">=22"
   },
   "packageManager": "pnpm@11.17.0"
 }

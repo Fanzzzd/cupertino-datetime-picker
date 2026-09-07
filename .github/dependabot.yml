@@ -1,0 +1,54 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      development-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      # React and React DOM must be the exact same version, and the docs app
+      # shares them with the library source, so they only move together.
+      react:
+        patterns:
+          - react
+          - react-dom
+          - "@types/react"
+          - "@types/react-dom"
+      # @tanstack/react-start pins an exact @tanstack/react-router; bumping one
+      # alone installs a second router and loses the Start route augmentation.
+      tanstack:
+        patterns:
+          - "@tanstack/*"
+      # fumadocs-ui peer-depends on an exact fumadocs-core.
+      fumadocs:
+        patterns:
+          - fumadocs-*
+      base-ui:
+        patterns:
+          - "@base-ui/*"
+      # Both read the same config; a lint-only bump can format differently.
+      oxc:
+        patterns:
+          - oxlint
+          - oxfmt
+      playwright:
+        patterns:
+          - "@playwright/*"
+          - playwright
+    ignore:
+      # @types/node describes the Node major the workflows run on (22). Bump it
+      # by hand when the workflows move.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

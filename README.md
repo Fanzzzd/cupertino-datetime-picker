@@ -103,9 +103,15 @@ pnpm dev          # demo at http://localhost:5173
 pnpm test         # vitest: calendar math, clock, segment typing, fling math
 pnpm e2e          # Playwright: desktop Chrome + iPhone 15 (touch flings via CDP)
 pnpm check        # typecheck, lint, tests, build
-pnpm registry:build   # shadcn registry JSON into docs/public/r
 pnpm docs         # documentation site (Fumadocs) at http://localhost:3000
 ```
+
+The library lives in `packages/cupertino-datetime-picker`, the site in
+`docs/`. The docs build generates the shadcn registry JSON from
+`registry.json` into `docs/public/r/`, so the published registry is never
+stale. Releases go through [changesets](https://github.com/changesets/changesets):
+add a `.changeset/*.md` with your change, and the "Version Packages" PR
+publishes to npm when merged.
 
 ## Not yet
 

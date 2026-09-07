@@ -1,29 +1,53 @@
 name: Release
 
-# Publishes to npm when a version tag is pushed. The package's own
-# `prepublishOnly` runs the full check first, so a tag on a red tree fails
-# here rather than on the registry.
+# Changesets keeps a "Version Packages" PR open while there are pending
+# changesets; merging it publishes to npm. Publishing authenticates through
+# OIDC trusted publishing: no NPM_TOKEN anywhere.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
 
 permissions:
   contents: read
 
+concurrency: release-${{ github.ref }}
+
 jobs:
-  publish:
+  verify:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write # OIDC trusted publishing to npm (provenance, no token)
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm check
+
+  release:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # changesets opens/updates the "Version Packages" PR
+      pull-requests: write # changesets opens/updates the "Version Packages" PR
+      id-token: write # OIDC trusted publishing to npm (provenance, no token)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -35,10 +59,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Tag matches package.json
-        run: |
-          version=$(node -p "require('./package.json').version")
-          test "v$version" = "${GITHUB_REF_NAME}" || { echo "tag ${GITHUB_REF_NAME} != v$version"; exit 1; }
-
-      # No NPM_TOKEN. Publishing authenticates via OIDC trusted publishing.
-      - run: npm publish --access public
+      # No build step here. The package's own `prepublishOnly` builds it, and
+      # only if changesets publishes.
+      - name: Create "Version Packages" PR or publish to npm
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version-script: pnpm version-packages
+          publish-script: pnpm release
+          commit-message: "chore: version packages"
+          pr-title: "chore: version packages"

@@ -47,7 +47,10 @@ export default defineConfig({
       { find: "tslib", replacement: "tslib/tslib.es6.js" },
       // The demos render the library from its source, so an edit shows up here
       // without a package build in between.
-      { find: /^cupertino-datetime-picker$/, replacement: `${root}../src/index.ts` },
+      {
+        find: /^cupertino-datetime-picker$/,
+        replacement: `${root}../packages/cupertino-datetime-picker/src/index.ts`,
+      },
     ],
     // The library source lives outside this package; both must share one React.
     dedupe: ["react", "react-dom", "@base-ui/react"],

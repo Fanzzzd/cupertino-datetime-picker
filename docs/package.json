@@ -4,8 +4,8 @@
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
+    "dev": "pnpm --filter cupertino-datetime-picker registry:build && vite dev",
+    "build": "pnpm --filter cupertino-datetime-picker registry:build && vite build",
     "preview": "vite preview",
     "typecheck": "fumadocs-mdx && tsc --noEmit"
   },

@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 
 /** Controlled when `value` is given, otherwise owned here. */

@@ -20,8 +20,8 @@
     "es2024": true
   },
   "ignorePatterns": [
-    "dist",
-    "dist-demo",
+    "packages/*/dist",
+    "packages/*/dist-demo",
     "docs/public/r",
     "docs/.source",
     "docs/.output",

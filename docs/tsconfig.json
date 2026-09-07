@@ -16,7 +16,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "collections/*": ["./.source/*"],
-      "cupertino-datetime-picker": ["../src/index.ts"]
+      "cupertino-datetime-picker": ["../packages/cupertino-datetime-picker/src/index.ts"]
     }
   },
   "include": ["src", "source.config.ts", "vite.config.ts", ".source"],

@@ -5,7 +5,13 @@ const port = Number(process.env.CDP_E2E_PORT ?? 4173);
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  reporter: "line",
+  // Playwright's CI conventions: no stray `.only`, retries so a loaded runner
+  // reports flakiness instead of failing, one worker so tests do not compete
+  // for the CPU, and GitHub annotations on failures.
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: process.env.CI ? [["line"], ["github"]] : "line",
   timeout: 30_000,
   expect: { timeout: 5_000 },
   use: {
