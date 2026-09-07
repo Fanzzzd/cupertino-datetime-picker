@@ -26,10 +26,11 @@ export type DateTimePickerProps = {
   labels?: { date?: string; time?: string };
 };
 
-const pillClass =
+/** The compact pill and its popover, for composing your own rows. */
+export const pillClass =
   "inline-flex h-[34px] items-center rounded-lg bg-[var(--cdp-fill)] px-3 text-[17px] leading-none text-[var(--cdp-label)] transition-[background-color,color] outline-none hover:bg-[var(--cdp-fill-hover)] focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] active:opacity-60 disabled:opacity-40 data-popup-open:text-[var(--cdp-tint)]";
 
-const popupClass =
+export const popupClass =
   "cdp origin-(--transform-origin) rounded-[13px] bg-[var(--cdp-bg)] shadow-[var(--cdp-shadow)] outline-none data-open:animate-[cdp-pop-in_260ms_cubic-bezier(0.18,0.9,0.32,1.15)] data-closed:animate-[cdp-pop-out_140ms_ease-in]";
 
 /**

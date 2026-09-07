@@ -6,6 +6,7 @@
 :root {
   --cdp-tint: #007aff;
   --cdp-tint-fill: color-mix(in srgb, var(--cdp-tint) 14%, transparent);
+  --cdp-on-tint: #fff;
   --cdp-fill: rgba(120, 120, 128, 0.12);
   --cdp-fill-hover: rgba(120, 120, 128, 0.2);
   --cdp-label: #000;

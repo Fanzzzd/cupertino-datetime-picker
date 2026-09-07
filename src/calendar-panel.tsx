@@ -18,12 +18,28 @@ import { formatFullDate, formatMonthYear, monthNames, weekdayNames } from "./tim
 import { cn } from "./utils";
 import { Wheel, WheelHighlight } from "./wheel";
 
+export type CalendarPanelLabels = {
+  previousMonth: string;
+  nextMonth: string;
+  month: string;
+  year: string;
+};
+
+export const CALENDAR_LABELS: CalendarPanelLabels = {
+  previousMonth: "Previous month",
+  nextMonth: "Next month",
+  month: "Month",
+  year: "Year",
+};
+
 export type CalendarPanelProps = {
   value: Date | null;
   onChange: (date: Date) => void;
   locale?: string;
   min?: Date;
   max?: Date;
+  /** Accessible names; visible text comes from `Intl`. */
+  labels?: Partial<CalendarPanelLabels>;
   /** Injected for tests and stories. */
   today?: Date;
   className?: string;
@@ -58,9 +74,11 @@ export function CalendarPanel({
   locale = navigator.language,
   min,
   max,
+  labels: labelsProp,
   today: todayProp,
   className,
 }: CalendarPanelProps) {
+  const labels = { ...CALENDAR_LABELS, ...labelsProp };
   const today = todayProp ?? startOfDay(new Date());
   const weekStart = weekStartFor(locale);
   const [view, setView] = React.useState<YearMonth>(() => yearMonthOf(value ?? today));
@@ -181,7 +199,7 @@ export function CalendarPanel({
         >
           <button
             type="button"
-            aria-label="Previous month"
+            aria-label={labels.previousMonth}
             disabled={!canShift(-1)}
             onClick={() => shift(-1)}
             className="flex size-11 items-center justify-center rounded-full text-[var(--cdp-tint)] transition-opacity outline-none active:opacity-40 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]"
@@ -190,7 +208,7 @@ export function CalendarPanel({
           </button>
           <button
             type="button"
-            aria-label="Next month"
+            aria-label={labels.nextMonth}
             disabled={!canShift(1)}
             onClick={() => shift(1)}
             className="flex size-11 items-center justify-center rounded-full text-[var(--cdp-tint)] transition-opacity outline-none active:opacity-40 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]"
@@ -255,7 +273,7 @@ export function CalendarPanel({
                     "mx-auto flex size-10 items-center justify-center rounded-full text-[20px] leading-none tabular-nums transition-[background-color,transform] duration-150 outline-none active:scale-90 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--cdp-bg)] disabled:opacity-30",
                     selected
                       ? isToday
-                        ? "bg-[var(--cdp-tint)] font-semibold text-white"
+                        ? "bg-[var(--cdp-tint)] font-semibold text-[var(--cdp-on-tint)]"
                         : "bg-[var(--cdp-tint-fill)] font-semibold text-[var(--cdp-tint)]"
                       : isToday
                         ? "text-[var(--cdp-tint)] hover:bg-[var(--cdp-fill)]"
@@ -279,7 +297,7 @@ export function CalendarPanel({
         >
           <WheelHighlight className="inset-x-2" />
           <Wheel
-            aria-label="Month"
+            aria-label={labels.month}
             options={months}
             value={view.month}
             loop
@@ -288,7 +306,7 @@ export function CalendarPanel({
             className="w-40"
           />
           <Wheel
-            aria-label="Year"
+            aria-label={labels.year}
             options={years}
             value={view.year}
             visibleRows={7}

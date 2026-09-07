@@ -7,11 +7,27 @@ import { dayPeriodLabels, hourCycleFor, to12, to24, type HourCycle } from "./tim
 import { cn, pad2 } from "./utils";
 import { Wheel, WheelHighlight } from "./wheel";
 
+export type TimePanelLabels = {
+  time: string;
+  hour: string;
+  minute: string;
+  dayPeriod: string;
+};
+
+export const TIME_LABELS: TimePanelLabels = {
+  time: "Time",
+  hour: "Hour",
+  minute: "Minute",
+  dayPeriod: "Day period",
+};
+
 export type TimePanelProps = {
   value: Date;
   onChange: (date: Date) => void;
   locale?: string;
   hourCycle?: HourCycle;
+  /** Accessible names; visible text comes from `Intl`. */
+  labels?: Partial<TimePanelLabels>;
   /** Minute wheel granularity, like `UIDatePicker.minuteInterval`. */
   minuteInterval?: number;
   /** Hide the wheels and keep only the typed field. */
@@ -35,8 +51,10 @@ export function TimePanel({
   hourCycle: hourCycleProp,
   minuteInterval = 1,
   wheels = true,
+  labels: labelsProp,
   className,
 }: TimePanelProps) {
+  const labels = { ...TIME_LABELS, ...labelsProp };
   const hourCycle = hourCycleProp ?? hourCycleFor(locale);
   const twelve = hourCycle === "h12";
   const hours24 = value.getHours();
@@ -152,13 +170,13 @@ export function TimePanel({
       <div className="flex items-center justify-between gap-3">
         <div
           role="group"
-          aria-label="Time"
+          aria-label={labels.time}
           className="flex h-11 items-center rounded-lg bg-[var(--cdp-fill)] px-1.5"
           data-slot="time-field"
         >
           <input
             ref={hourRef}
-            aria-label="Hour"
+            aria-label={labels.hour}
             inputMode="numeric"
             autoComplete="off"
             value={shownText("hour")}
@@ -179,7 +197,7 @@ export function TimePanel({
           </span>
           <input
             ref={minuteRef}
-            aria-label="Minute"
+            aria-label={labels.minute}
             inputMode="numeric"
             autoComplete="off"
             value={shownText("minute")}
@@ -195,7 +213,7 @@ export function TimePanel({
         </div>
         {twelve && (
           <SegmentedControl
-            aria-label="Day period"
+            aria-label={labels.dayPeriod}
             options={[
               { value: false, label: periods.am },
               { value: true, label: periods.pm },
@@ -210,7 +228,7 @@ export function TimePanel({
         <div className="cdp-wheel-mask relative flex justify-center" data-slot="time-wheels">
           <WheelHighlight />
           <Wheel
-            aria-label="Hour"
+            aria-label={labels.hour}
             options={hourOptions}
             value={hourShown}
             loop
@@ -218,7 +236,7 @@ export function TimePanel({
             className="w-16"
           />
           <Wheel
-            aria-label="Minute"
+            aria-label={labels.minute}
             options={minuteOptions}
             value={minutes - (minutes % minuteInterval)}
             loop
@@ -227,7 +245,7 @@ export function TimePanel({
           />
           {twelve && (
             <Wheel
-              aria-label="Day period"
+              aria-label={labels.dayPeriod}
               options={[
                 { value: 0, label: periods.am },
                 { value: 1, label: periods.pm },

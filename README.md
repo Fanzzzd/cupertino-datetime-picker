@@ -56,8 +56,10 @@ import { DateTimePicker } from "cupertino-datetime-picker";
 The panels are exported on their own (`CalendarPanel`, `TimePanel`) as are
 the primitives (`Wheel`, `WheelHighlight`, `SegmentedControl`).
 
-Re-tint with `--cdp-tint`; dark mode follows a `.dark` (or
-`data-theme="dark"`) ancestor.
+Re-tint with `--cdp-tint` (and `--cdp-on-tint` for text on it); dark mode
+follows a `.dark` (or `data-theme="dark"`) ancestor. Accessible names are
+English by default; pass `labels` to `CalendarPanel` / `TimePanel` to
+translate them — the visible text is already the locale's.
 
 ## What matches iOS
 
