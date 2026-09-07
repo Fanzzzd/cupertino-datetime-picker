@@ -1,5 +1,4 @@
 import { Popover } from "@base-ui/react/popover";
-import * as React from "react";
 
 import { CalendarPanel } from "./calendar-panel";
 import { useControlled } from "./hooks";
