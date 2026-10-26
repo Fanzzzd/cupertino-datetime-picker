@@ -29,10 +29,42 @@ export type DateTimePickerProps = {
 
 /** The compact pill and its popover, for composing your own rows. */
 export const pillClass =
-  "inline-flex h-[34px] items-center rounded-lg bg-[var(--cdp-fill)] px-3 text-[17px] leading-none text-[var(--cdp-label)] transition-[background-color,color] outline-none hover:bg-[var(--cdp-fill-hover)] focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] active:opacity-60 disabled:opacity-40 data-popup-open:text-[var(--cdp-tint)]";
+  "inline-flex h-[34px] shrink-0 items-center rounded-lg bg-[var(--cdp-fill)] px-3 text-[17px] leading-none whitespace-nowrap text-[var(--cdp-label)] tabular-nums transition-[background-color,color] outline-none hover:bg-[var(--cdp-fill-hover)] focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] active:opacity-60 disabled:opacity-40 data-popup-open:text-[var(--cdp-tint)]";
 
 export const popupClass =
   "cdp origin-(--transform-origin) rounded-[13px] bg-[var(--cdp-bg)] shadow-[var(--cdp-shadow)] outline-none data-open:animate-[cdp-pop-in_260ms_cubic-bezier(0.18,0.9,0.32,1.15)] data-closed:animate-[cdp-pop-out_140ms_ease-in]";
+
+/**
+ * Pill text sized to the widest text the pill can show, so the pill keeps its
+ * width as the value changes and nothing beside it, or the open popover
+ * anchored to it, moves. The widest strings render through `::before`, which
+ * keeps them out of the pill's text and accessible name.
+ */
+function PillText({ text, widest }: { text: string; widest: string[] }) {
+  return (
+    <span className="grid justify-items-center">
+      <span className="col-start-1 row-start-1">{text}</span>
+      {widest.map((w) => (
+        <span
+          key={w}
+          aria-hidden
+          data-text={w}
+          className="invisible col-start-1 row-start-1 before:content-[attr(data-text)]"
+        />
+      ))}
+    </span>
+  );
+}
+
+/** Day 28 of every month: digits are tabular, so this covers each month name at two digits. */
+function widestDays(year: number, locale: string): string[] {
+  return Array.from({ length: 12 }, (_, m) => formatDay(new Date(year, m, 28), locale));
+}
+
+/** Two-digit hours on both sides of noon, for the 12-hour clock's day-period labels. */
+function widestClocks(locale: string, hourCycle: HourCycle): string[] {
+  return [10, 22].map((h) => formatClock(new Date(2000, 0, 1, h, 58), locale, hourCycle));
+}
 
 /**
  * The iOS 14+ date picker for the web. Compact display shows the date and
@@ -60,6 +92,8 @@ export function DateTimePicker({
   const showTime = mode !== "date";
   // Panels always have something to edit; a picked day or time starts from now.
   const draft = value ?? new Date();
+  const dateLabel = labels?.date ?? "Date";
+  const timeLabel = labels?.time ?? "Time";
 
   const calendar = (
     <CalendarPanel value={value} onChange={setValue} locale={locale} min={min} max={max} />
@@ -77,7 +111,10 @@ export function DateTimePicker({
   const timePopover = (
     <Popover.Root>
       <Popover.Trigger className={pillClass} disabled={disabled} data-slot="time-trigger">
-        {value ? formatClock(value, locale, hourCycle) : (labels?.time ?? "Time")}
+        <PillText
+          text={value ? formatClock(value, locale, hourCycle) : timeLabel}
+          widest={[timeLabel, ...widestClocks(locale, hourCycle)]}
+        />
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner sideOffset={8} align="center" className="isolate z-50">
@@ -104,7 +141,7 @@ export function DateTimePicker({
         {showTime &&
           (showDate ? (
             <div className="mx-3 flex h-[52px] items-center justify-between border-t border-[var(--cdp-fill)]">
-              <span className="text-[17px] text-[var(--cdp-label)]">{labels?.time ?? "Time"}</span>
+              <span className="text-[17px] text-[var(--cdp-label)]">{timeLabel}</span>
               {timePopover}
             </div>
           ) : (
@@ -116,14 +153,17 @@ export function DateTimePicker({
 
   return (
     <div
-      className={cn("cdp inline-flex items-center gap-2", className)}
+      className={cn("cdp inline-flex flex-wrap items-center justify-end gap-2", className)}
       data-slot="date-time-picker"
       data-display="compact"
     >
       {showDate && (
         <Popover.Root>
           <Popover.Trigger className={pillClass} disabled={disabled} data-slot="date-trigger">
-            {value ? formatDay(value, locale) : (labels?.date ?? "Date")}
+            <PillText
+              text={value ? formatDay(value, locale) : dateLabel}
+              widest={[dateLabel, ...widestDays(draft.getFullYear(), locale)]}
+            />
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Positioner sideOffset={8} align="center" className="isolate z-50">

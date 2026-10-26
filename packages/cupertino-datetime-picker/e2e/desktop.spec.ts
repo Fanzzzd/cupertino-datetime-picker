@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Locator, expect, test } from "@playwright/test";
 
 import { datePopup, dateTrigger, open, timePopup, timeTrigger, value, wheel } from "./helpers";
 
@@ -180,6 +180,39 @@ test("the segmented control and 24-hour locales", async ({ page }) => {
   await expect(timeTrigger(page)).toHaveText("07:30");
   await expect(dateTrigger(page)).toHaveText("05.09.2026");
   await expect(timePopup(page).getByRole("textbox", { name: "Hour" })).toHaveValue("07");
+});
+
+test("the pills keep their width and place as the value's text grows", async ({ page }) => {
+  await open(page);
+  // Page coordinates: WebKit can scroll the page when a popover opens.
+  const place = async (locator: Locator) => {
+    const b = await locator.boundingBox();
+    const scrollY = await page.evaluate(() => window.scrollY);
+    return b && { ...b, y: b.y + scrollY };
+  };
+  const box = async () => ({
+    date: await place(dateTrigger(page)),
+    time: await place(timeTrigger(page)),
+    popup: await place(timePopup(page)),
+  });
+  await timeTrigger(page).click();
+  await timePopup(page).getByRole("radio", { name: "AM" }).click();
+  await timePopup(page).getByRole("textbox", { name: "Hour" }).click();
+  await page.keyboard.type("9");
+  await expect(timeTrigger(page)).toHaveText("9:30 AM");
+  const before = await box();
+  await timePopup(page).getByRole("textbox", { name: "Hour" }).click();
+  await page.keyboard.type("10");
+  await expect(timeTrigger(page)).toHaveText("10:30 AM");
+  expect(await box()).toEqual(before);
+  await page.keyboard.press("Escape");
+
+  await dateTrigger(page).click();
+  await datePopup(page)
+    .getByRole("gridcell", { name: /September 25, 2026/ })
+    .click();
+  await expect(dateTrigger(page)).toHaveText("Sep 25, 2026");
+  expect(await place(dateTrigger(page))).toEqual(before.date);
 });
 
 test("an empty picker starts from now and stays consistent", async ({ page }) => {
