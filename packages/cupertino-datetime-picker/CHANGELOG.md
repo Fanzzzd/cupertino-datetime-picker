@@ -1,5 +1,11 @@
 # cupertino-datetime-picker
 
+## 0.1.2
+
+### Patch Changes
+
+- [`17b06c6`](https://github.com/Fanzzzd/cupertino-datetime-picker/commit/17b06c6fe5f8197fcfb7af78e0010409fff48ac7) Thanks [@Fanzzzd](https://github.com/Fanzzzd)! - The compact pills keep one width as the value changes, so the row and the open popover stay put. Pill text no longer wraps, and in a narrow row the pills move to a second line instead.
+
 ## 0.1.1
 
 ### Patch Changes
