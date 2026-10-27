@@ -464,3 +464,48 @@ test("opening the clock writes nothing until something changes", async ({ page }
   await page.keyboard.press("ArrowDown");
   await expect(value(page)).toHaveText("Sep 5, 2026 6:31 PM");
 });
+
+test("a long trackpad flick on a looped wheel never reaches the end of its rows", async ({
+  page,
+}) => {
+  await open(page);
+  await timeTrigger(page).click();
+  const minute = wheel(page, "Minute");
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const box = (await minute.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const end = await minute.evaluate((el) => {
+    const w = window as unknown as { low: number; high: number };
+    w.low = el.scrollTop;
+    w.high = el.scrollTop;
+    el.addEventListener("scroll", () => {
+      w.low = Math.min(w.low, el.scrollTop);
+      w.high = Math.max(w.high, el.scrollTop);
+    });
+    return el.scrollHeight - el.clientHeight;
+  });
+  // A macOS trackpad flick: the fingers' strokes, then momentum events that
+  // decay over a second or more, about 5000px in all (150 rows).
+  for (const sign of [1, -1]) {
+    let delta = 120;
+    while (delta > 1) {
+      await page.mouse.wheel(0, sign * delta);
+      await page.waitForTimeout(8);
+      delta *= 0.97;
+    }
+    await page.waitForTimeout(600);
+  }
+  const { low, high } = await page.evaluate(() => {
+    const w = window as unknown as { low: number; high: number };
+    return { low: w.low, high: w.high };
+  });
+  expect(low).toBeGreaterThan(0);
+  expect(high).toBeLessThan(end);
+  // It rests on a row, and the field agrees with it.
+  const top = await minute.evaluate((el) => el.scrollTop);
+  expect(top % 32).toBe(0);
+  const field = timePopup(page).getByRole("textbox", { name: "Minute" });
+  await expect(field).toHaveValue(
+    String(await minute.getAttribute("aria-valuenow")).padStart(2, "0"),
+  );
+});

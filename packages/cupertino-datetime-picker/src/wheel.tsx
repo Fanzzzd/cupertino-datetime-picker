@@ -94,6 +94,9 @@ export function Wheel({
   // until the finger lifts.
   const touching = React.useRef(false);
   const fling = React.useRef(0);
+  // When the last wheel event came: a trackpad's momentum arrives as more
+  // wheel events, so while they come the wheel is still being flung.
+  const wheeledAt = React.useRef(-Infinity);
   const settleTimer = React.useRef(0);
   const typeahead = React.useRef({ buffer: "", timer: 0 });
   // A mouse click is resolved on pointer-up (pointer capture would retarget
@@ -240,7 +243,21 @@ export function Wheel({
     [],
   );
 
-  const onScroll = () => {
+  // A hard trackpad flick runs further than any road: it would hit the end of
+  // the rows and bounce. Mid-flick, a looped wheel far from the middle copy
+  // moves back by whole loops, which draws the same rows.
+  const keepOnRoad = (el: HTMLDivElement) => {
+    if (!loop || drag.current || fling.current || touching.current) return;
+    if (performance.now() - wheeledAt.current > 200) return;
+    const away = el.scrollTop / itemHeight - (base + (len - 1) / 2);
+    if (Math.abs(away) < ROAD_ROWS / 2) return;
+    const shift = Math.round(away / len) * len;
+    el.scrollTop -= shift * itemHeight;
+    resting.current -= shift;
+  };
+
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    keepOnRoad(e.currentTarget);
     paint();
     // `scrollend` is the real signal; the timer covers engines without it.
     window.clearTimeout(settleTimer.current);
@@ -443,7 +460,10 @@ export function Wheel({
         data-slot="wheel"
         onScroll={onScroll}
         onScrollEnd={onScrollEnd}
-        onWheel={() => (arriving.current = null)}
+        onWheel={() => {
+          arriving.current = null;
+          wheeledAt.current = performance.now();
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
