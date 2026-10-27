@@ -4,7 +4,15 @@ import * as React from "react";
 
 import { usePrefersReducedMotion } from "./hooks";
 import { clamp, cn, mod } from "./utils";
-import { easeOutCubic, flingTarget, nearestCopy, snapIndex } from "./wheel-math";
+import {
+  flingTarget,
+  easeOutCubic,
+  glideDuration,
+  nearestCopy,
+  releaseVelocity,
+  snapIndex,
+  type DragSample,
+} from "./wheel-math";
 
 export type WheelOption = { value: number; label: string };
 
@@ -42,9 +50,7 @@ const TYPEAHEAD_MS = 700;
 type Drag = {
   startY: number;
   startTop: number;
-  lastTop: number;
-  lastT: number;
-  v: number;
+  samples: DragSample[];
   moved: boolean;
 };
 
@@ -184,6 +190,8 @@ export function Wheel({
       if (idx !== centred) {
         idx = centred;
         el.scrollTop = idx * itemHeight;
+        // Draw the drum at the new copy now, not a frame later.
+        paint();
       }
     }
     resting.current = idx;
@@ -241,9 +249,7 @@ export function Wheel({
     drag.current = {
       startY: e.clientY,
       startTop: el.scrollTop,
-      lastTop: el.scrollTop,
-      lastT: e.timeStamp,
-      v: 0,
+      samples: [{ t: e.timeStamp, top: el.scrollTop }],
       moved: false,
     };
   };
@@ -253,10 +259,9 @@ export function Wheel({
     if (!d) return;
     const el = e.currentTarget;
     const top = clamp(d.startTop - (e.clientY - d.startY), 0, maxIndex * itemHeight);
-    const dt = Math.max(1, e.timeStamp - d.lastT);
-    d.v = d.v * 0.5 + ((top - d.lastTop) / dt) * 0.5;
-    d.lastTop = top;
-    d.lastT = e.timeStamp;
+    d.samples.push({ t: e.timeStamp, top });
+    // Keep only what the release speed reads.
+    if (d.samples.length > 32) d.samples.splice(0, d.samples.length - 32);
     if (Math.abs(e.clientY - d.startY) > 3) d.moved = true;
     el.scrollTop = top;
   };
@@ -280,26 +285,22 @@ export function Wheel({
       return;
     }
     clickHandled.current = true;
-    const target = flingTarget(
-      el.scrollTop,
-      e.timeStamp - d.lastT > 80 ? 0 : d.v,
-      itemHeight,
-      maxIndex,
-    );
+    // Glide on at the speed the hand let go and come to rest exactly on a row.
+    const v = releaseVelocity(d.samples, e.timeStamp);
     const from = el.scrollTop;
-    const to = target * itemHeight;
-    const duration = reduceMotion ? 0 : clamp(Math.abs(to - from) * 1.2, 180, 720);
-    const start = e.timeStamp;
+    const distance = flingTarget(from, v, itemHeight, maxIndex) * itemHeight - from;
+    const duration = reduceMotion ? 0 : glideDuration(distance, v);
+    const start = performance.now();
     const step = (now: number) => {
-      const t = duration === 0 ? 1 : Math.min(1, (now - start) / duration);
-      el.scrollTop = from + (to - from) * easeOutCubic(t);
-      if (t < 1) {
-        fling.current = requestAnimationFrame(step);
-      } else {
+      const t = duration === 0 ? 1 : Math.min(1, Math.max(0, now - start) / duration);
+      el.scrollTop = from + distance * easeOutCubic(t);
+      if (t === 1) {
         fling.current = 0;
         el.style.scrollSnapType = "";
         settle();
+        return;
       }
+      fling.current = requestAnimationFrame(step);
     };
     fling.current = requestAnimationFrame(step);
   };
