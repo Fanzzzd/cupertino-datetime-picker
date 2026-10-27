@@ -11,7 +11,7 @@ export function snapIndex(scrollTop: number, itemHeight: number): number {
  * lands on a row.
  */
 /** How far a released wheel glides per px/ms of release speed: `velocity × FLING_MS`. */
-export const FLING_MS = 380;
+export const FLING_MS = 460;
 
 export type DragSample = { t: number; top: number };
 
@@ -37,7 +37,7 @@ export function releaseVelocity(samples: DragSample[], releasedAt: number, windo
  */
 export function glideDuration(distance: number, velocity: number): number {
   const moving = Math.abs(velocity) > 0.05 && Math.sign(velocity) === Math.sign(distance);
-  return clamp(moving ? (3 * distance) / velocity : 180, 120, 1600);
+  return clamp(moving ? (3 * distance) / velocity : 180, 120, 2000);
 }
 
 export function easeOutCubic(t: number): number {

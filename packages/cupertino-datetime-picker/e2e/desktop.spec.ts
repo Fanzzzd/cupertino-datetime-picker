@@ -63,24 +63,27 @@ test("the month/year wheels keep the panel's height and close with Done", async 
   await expect(popup.getByRole("button", { name: /August 2026/ })).toBeVisible();
   expect((await calendar.boundingBox())?.height).toBe(height);
 
-  await popup.getByRole("button", { name: "Done" }).click();
-  await expect(popup.getByRole("button", { name: /August 2026/ })).toHaveAttribute(
-    "aria-expanded",
-    "false",
-  );
+  await popup.getByRole("button", { name: "Done" }).focus();
+  await page.keyboard.press("Enter");
+  const title = popup.getByRole("button", { name: /August 2026/ });
+  await expect(title).toHaveAttribute("aria-expanded", "false");
+  // Focus goes back to the title, not to the page.
+  await expect(title).toBeFocused();
   await expect(popup.getByRole("grid")).toHaveAccessibleName("August 2026");
 });
+
+/** Whether focusing the element actually moves focus there. */
+const focusable = (locator: Locator) =>
+  locator.evaluate((el: HTMLElement) => {
+    el.focus();
+    return document.activeElement === el;
+  });
 
 test("only the showing layer takes focus, and the open title is tinted", async ({ page }) => {
   await open(page);
   await dateTrigger(page).click();
   const popup = datePopup(page);
   const title = popup.getByRole("button", { name: /September 2026/ });
-  const focusable = (locator: Locator) =>
-    locator.evaluate((el: HTMLElement) => {
-      el.focus();
-      return document.activeElement === el;
-    });
   const month = popup.getByRole("spinbutton", { name: "Month" });
   const done = popup.getByRole("button", { name: "Done" });
   const previous = popup.getByRole("button", { name: "Previous month" });
@@ -163,10 +166,14 @@ test("the wheels move the field: keyboard, mouse wheel, drag, click", async ({ p
   await expect
     .poll(async () => Number(await hour.getAttribute("aria-valuenow")))
     .toBeGreaterThan(6);
-  const afterWheel = await hour.getAttribute("aria-valuenow");
-  await expect(popup.getByRole("textbox", { name: "Hour" })).toHaveValue(
-    String(afterWheel).padStart(2, "0"),
-  );
+  // The wheel may still be passing rows; once it rests, the field agrees.
+  const field = popup.getByRole("textbox", { name: "Hour" });
+  await expect
+    .poll(async () => {
+      const wheelNow = String(await hour.getAttribute("aria-valuenow")).padStart(2, "0");
+      return wheelNow === (await field.inputValue());
+    })
+    .toBe(true);
 
   // Click the row above the centre.
   const period = wheel(page, "Day period");
@@ -262,6 +269,37 @@ test("the hour wheel carries into AM/PM between 11 and 12, as on iOS", async ({ 
   await page.keyboard.press("ArrowUp");
   await page.keyboard.press("ArrowUp");
   await expect(value(page)).toHaveText("Sep 5, 2026 11:30 PM");
+});
+
+test("jumps on the hour wheel do not carry into AM/PM; a hard fling has road", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  const hour = wheel(page, "Hour");
+  await hour.focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowDown");
+  await expect(value(page)).toHaveText("Sep 5, 2026 11:30 PM");
+  // Type-ahead jumps to 1 by the nearest copy, past 12: still PM, like the field.
+  await page.keyboard.type("1");
+  await expect(value(page)).toHaveText("Sep 5, 2026 1:30 PM");
+
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const box = (await hour.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const peak = await hour.evaluate((el) => {
+    const w = window as unknown as { peak: number };
+    w.peak = 0;
+    el.addEventListener("scroll", () => (w.peak = Math.max(w.peak, el.scrollTop)));
+    return el.scrollHeight - el.clientHeight;
+  });
+  await page.mouse.move(x, box.y + box.height - 8);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) await page.mouse.move(x, box.y + box.height - 8 - i * 34);
+  await page.mouse.up();
+  await page.waitForTimeout(2500);
+  // The glide stops on its own, short of the end of the rows.
+  expect(await page.evaluate(() => (window as unknown as { peak: number }).peak)).toBeLessThan(
+    peak - 32,
+  );
 });
 
 test("wheel columns align like iOS: hours end where minutes begin", async ({ page }) => {

@@ -54,7 +54,7 @@
 }
 
 .cdp-wheel-mask {
-  mask-image: linear-gradient(to bottom, transparent, black 22%, black 78%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
 }
 
 @keyframes cdp-pop-in {

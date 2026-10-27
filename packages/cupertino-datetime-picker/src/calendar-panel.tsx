@@ -16,6 +16,7 @@ import {
   yearMonthOf,
   type YearMonth,
 } from "./calendar";
+import { useBrowserLocale } from "./hooks";
 import { formatFullDate, formatMonthYear, monthNames, weekdayNames } from "./time";
 import { cn } from "./utils";
 import { Wheel, WheelHighlight } from "./wheel";
@@ -76,7 +77,7 @@ function Chevron({ className }: { className?: string }) {
 export function CalendarPanel({
   value,
   onChange,
-  locale = navigator.language,
+  locale: localeProp,
   min,
   max,
   labels: labelsProp,
@@ -84,6 +85,9 @@ export function CalendarPanel({
   className,
 }: CalendarPanelProps) {
   const labels = { ...CALENDAR_LABELS, ...labelsProp };
+  const browserLocale = useBrowserLocale();
+  const locale = localeProp ?? browserLocale;
+  const title = React.useRef<HTMLButtonElement>(null);
   const today = todayProp ?? startOfDay(new Date());
   const weekStart = weekStartFor(locale);
   const [view, setView] = React.useState<YearMonth>(() => yearMonthOf(value ?? today));
@@ -201,6 +205,7 @@ export function CalendarPanel({
     <div className={cn("cdp flex w-[312px] flex-col select-none", className)} data-slot="calendar">
       <div className="flex h-11 items-center justify-between pr-1 pl-2.5">
         <button
+          ref={title}
           type="button"
           aria-expanded={picking}
           onClick={togglePicking}
@@ -219,7 +224,12 @@ export function CalendarPanel({
             type="button"
             // Hidden layers are inert: nothing invisible takes focus or a key.
             inert={!picking}
-            onClick={togglePicking}
+            onClick={() => {
+              // Done is about to go inert; focus goes back to the title,
+              // the control that opened the wheels.
+              title.current?.focus();
+              togglePicking();
+            }}
             className={cn(
               "col-start-1 row-start-1 h-9 self-center justify-self-end rounded-lg px-2 text-[17px] font-semibold text-[var(--cdp-tint)] transition-opacity duration-150 outline-none active:opacity-50 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]",
               !picking && "pointer-events-none opacity-0",
@@ -311,7 +321,9 @@ export function CalendarPanel({
                   tabIndex={isSameDay(date, focusDate) ? 0 : -1}
                   disabled={disabled}
                   onClick={() => pick(date)}
-                  onFocus={() => setFocusDate(date)}
+                  onFocus={() => {
+                    if (!isSameDay(date, focusDate)) setFocusDate(date);
+                  }}
                   className={cn(
                     "mx-auto flex size-10 items-center justify-center rounded-full text-[20px] leading-none tabular-nums transition-transform duration-150 outline-none active:scale-90 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--cdp-bg)] disabled:opacity-30",
                     selected

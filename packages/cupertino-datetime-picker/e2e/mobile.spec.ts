@@ -108,6 +108,33 @@ test("a touch fling spins the minute wheel and the field follows", async ({
   await expect(value(page)).toContainText(`6:${shown} PM`);
 });
 
+test("a finger held on a wheel writes nothing until it lifts", async ({ page, browserName }) => {
+  test.skip(browserName === "webkit", "synthetic touch gestures need CDP");
+  await open(page);
+  await timeTrigger(page).tap();
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const minute = wheel(page, "Minute");
+  const box = (await minute.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: point({ x, y }) });
+  // Slowly, two rows and a half up, then hold the finger still mid-row.
+  for (let i = 1; i <= 10; i++) {
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: point({ x, y: y - i * 8 }),
+    });
+    await page.waitForTimeout(30);
+  }
+  const held = await minute.evaluate((el) => el.scrollTop);
+  await page.waitForTimeout(600);
+  expect(await minute.evaluate((el) => el.scrollTop)).toBe(held);
+  await expect(value(page)).toHaveText("Sep 5, 2026 6:30 PM");
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(value(page)).not.toHaveText("Sep 5, 2026 6:30 PM");
+});
+
 test("tapping a row off centre selects it", async ({ page }) => {
   await open(page);
   await timeTrigger(page).tap();

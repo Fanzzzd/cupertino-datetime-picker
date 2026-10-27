@@ -17,6 +17,22 @@ export function useControlled<T>(
   return [current, set];
 }
 
+/**
+ * The browser's language, read without touching `navigator` during a server
+ * render (it does not exist there); the server and the first client render
+ * agree on "en-US", then the real language takes over.
+ */
+export function useBrowserLocale(): string {
+  return React.useSyncExternalStore(
+    (notify) => {
+      window.addEventListener("languagechange", notify);
+      return () => window.removeEventListener("languagechange", notify);
+    },
+    () => navigator.language,
+    () => "en-US",
+  );
+}
+
 export function usePrefersReducedMotion(): boolean {
   return React.useSyncExternalStore(
     (notify) => {

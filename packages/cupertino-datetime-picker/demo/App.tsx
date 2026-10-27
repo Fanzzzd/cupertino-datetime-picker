@@ -5,6 +5,11 @@ import { formatClock, formatDay, hourCycleFor } from "../src/time";
 
 const LOCALES = ["en-US", "en-GB", "zh-CN", "ja-JP", "de-DE", "fr-FR"];
 
+// Module constants, so the memoized pickers below see the same props on
+// every render of the page.
+const NINE_AM = new Date(2026, 8, 5, 9, 0);
+const QUARTER_PAST_NINE_PM = new Date(2026, 8, 5, 21, 15);
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2 not-last:border-b not-last:border-black/8 dark:not-last:border-white/10">
@@ -101,17 +106,12 @@ export function App() {
           <DateTimePicker mode="time" value={value} onChange={setValue} locale={locale} />
         </Row>
         <Row label="Every 5 min">
-          <DateTimePicker
-            mode="time"
-            defaultValue={new Date(2026, 8, 5, 9, 0)}
-            locale={locale}
-            minuteInterval={5}
-          />
+          <DateTimePicker mode="time" defaultValue={NINE_AM} locale={locale} minuteInterval={5} />
         </Row>
         <Row label="24-hour">
           <DateTimePicker
             mode="time"
-            defaultValue={new Date(2026, 8, 5, 21, 15)}
+            defaultValue={QUARTER_PAST_NINE_PM}
             locale={locale}
             hourCycle="h23"
           />

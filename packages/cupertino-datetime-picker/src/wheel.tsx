@@ -42,9 +42,10 @@ const ROW_DEGREES = 22;
 /** The band behind the centre row is a little taller than a row, like iOS's. */
 export const BAND_EXTRA = 2;
 
-// Looped wheels render the options this many times and rest in the middle
-// copy, so a fling always has road in both directions.
-const COPIES = 7;
+// Looped wheels render the options several times and rest in the middle
+// copy, so a fling always has road in both directions: at least this many
+// rows each way, which a hard fling does not use up.
+const ROAD_ROWS = 60;
 const TYPEAHEAD_MS = 700;
 
 type Drag = {
@@ -75,8 +76,8 @@ export function Wheel({
   const scroller = React.useRef<HTMLDivElement>(null);
   const reduceMotion = usePrefersReducedMotion();
   const len = options.length;
-  const copies = loop ? COPIES : 1;
-  const base = loop ? Math.floor(COPIES / 2) * len : 0;
+  const copies = loop ? 2 * Math.ceil(ROAD_ROWS / len) + 1 : 1;
+  const base = loop ? Math.floor(copies / 2) * len : 0;
   const maxIndex = len * copies - 1;
   const selected = Math.max(
     0,
@@ -89,6 +90,9 @@ export function Wheel({
   // Physical row the wheel rests on; the value is `options[resting % len]`.
   const resting = React.useRef(base + selected);
   const drag = React.useRef<Drag | null>(null);
+  // A finger is on the wheel: the browser scrolls it, and nothing settles
+  // until the finger lifts.
+  const touching = React.useRef(false);
   const fling = React.useRef(0);
   const settleTimer = React.useRef(0);
   const typeahead = React.useRef({ buffer: "", timer: 0 });
@@ -110,11 +114,12 @@ export function Wheel({
   // that report could land after the real one and win.
   const arriving = React.useRef<{ physical: number; lastTop: number; nudges: number } | null>(null);
 
-  // Only a different row is a change: settling where the wheel already was
-  // (including the first layout) must not write anything.
+  // Only a turn is a change: settling where the wheel already was (including
+  // the first layout) must not write anything. A looped wheel turned a whole
+  // round reports too, so an hour wheel can carry into AM/PM.
   const report = (physical: number, from: number) => {
     const option = optionAt(physical);
-    if (option && option.value !== valueRef.current)
+    if (option && (option.value !== valueRef.current || (loop && physical !== from)))
       onChangeRef.current(option.value, physical - from);
   };
 
@@ -143,7 +148,7 @@ export function Wheel({
       if (label) {
         label.style.transform = `translateY(${shift.toFixed(2)}px) perspective(600px) rotateX(${-angle}deg)`;
         label.style.opacity =
-          Math.abs(angle) >= 90 ? "0" : String(clamp(Math.cos(rad) ** 1.5, 0.15, 1));
+          Math.abs(angle) >= 90 ? "0" : String(clamp(Math.cos(rad) ** 0.75, 0.2, 1));
       }
       if (i === nearest) row.dataset.active = "";
       else delete row.dataset.active;
@@ -164,7 +169,7 @@ export function Wheel({
   // Where the wheel stopped becomes the value; looped wheels quietly re-centre.
   const settle = () => {
     const el = scroller.current;
-    if (!el || drag.current || fling.current) return;
+    if (!el || drag.current || fling.current || touching.current) return;
     const a = arriving.current;
     if (a && snapIndex(el.scrollTop, itemHeight) !== a.physical) {
       if (el.scrollTop !== a.lastTop) {
@@ -198,12 +203,13 @@ export function Wheel({
     report(turned, from);
   };
 
-  const go = (physical: number, smooth = true) => {
+  /** `turn: false` is a jump (Home, End, type-ahead): it reports no rows turned. */
+  const go = (physical: number, turn = true) => {
     const target = clamp(physical, 0, maxIndex);
     const from = resting.current;
     resting.current = target;
-    report(target, from);
-    scrollToIndex(target, smooth);
+    report(target, turn ? from : target);
+    scrollToIndex(target, true);
   };
 
   // Initial rest, without animation.
@@ -224,6 +230,16 @@ export function Wheel({
     scrollToIndex(physical, true);
   });
 
+  // Nothing the wheel scheduled may run once it is gone.
+  React.useEffect(
+    () => () => {
+      cancelAnimationFrame(fling.current);
+      window.clearTimeout(settleTimer.current);
+      window.clearTimeout(typeahead.current.timer);
+    },
+    [],
+  );
+
   const onScroll = () => {
     paint();
     // `scrollend` is the real signal; the timer covers engines without it.
@@ -234,6 +250,21 @@ export function Wheel({
   const onScrollEnd = () => {
     window.clearTimeout(settleTimer.current);
     settle();
+  };
+
+  // Touch is native scrolling: pointer events end in `pointercancel` as soon
+  // as the browser takes the gesture, so the finger is tracked by touch events.
+  const onTouchStart = () => {
+    touching.current = true;
+    arriving.current = null;
+    window.clearTimeout(settleTimer.current);
+  };
+  const onTouchEnd = () => {
+    touching.current = false;
+    // The momentum that follows keeps pushing this back; a finger lifted
+    // from a still wheel settles here.
+    window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(settle, 120);
   };
 
   // Mouse drag: the browser gives touch a fling for free, the mouse needs one.
@@ -279,7 +310,8 @@ export function Wheel({
       // is how many rows from the centre row it points at.
       const box = el.getBoundingClientRect();
       const fromMiddle = clamp((e.clientY - box.top - box.height / 2) / radius, -1, 1);
-      const turn = (Math.asin(fromMiddle) * 180) / Math.PI / ROW_DEGREES;
+      const half = Math.floor(visibleRows / 2);
+      const turn = clamp((Math.asin(fromMiddle) * 180) / Math.PI / ROW_DEGREES, -half, half);
       go(Math.round(el.scrollTop / itemHeight + turn));
       clickHandled.current = true;
       return;
@@ -323,10 +355,10 @@ export function Wheel({
         go(r + 5);
         break;
       case "Home":
-        go(first);
+        go(first, false);
         break;
       case "End":
-        go(last);
+        go(last, false);
         break;
       default: {
         if (e.key.length !== 1 || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -343,9 +375,9 @@ export function Wheel({
             (o) => String(o.value) === ta.buffer || o.label.toLowerCase().startsWith(ta.buffer),
           );
           if (retry === -1) return;
-          go(loop ? nearestCopy(retry, r, len, copies) : retry);
+          go(loop ? nearestCopy(retry, r, len, copies) : retry, false);
         } else {
-          go(loop ? nearestCopy(hit, r, len, copies) : hit);
+          go(loop ? nearestCopy(hit, r, len, copies) : hit, false);
         }
         break;
       }
@@ -374,7 +406,7 @@ export function Wheel({
           role="presentation"
           data-index={i}
           className={cn(
-            "flex snap-center items-center text-[23px] leading-none text-[var(--cdp-secondary)] tabular-nums transition-colors data-active:text-[var(--cdp-label)]",
+            "flex snap-center items-center text-[23px] leading-none text-[var(--cdp-secondary)] tabular-nums data-active:text-[var(--cdp-label)]",
             align === "start"
               ? "justify-start"
               : align === "end"
@@ -416,6 +448,9 @@ export function Wheel({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
         onKeyDown={onKeyDown}
         className={cn(
           "cdp-wheel peer relative w-full snap-y snap-mandatory overflow-y-scroll overscroll-contain outline-none select-none",

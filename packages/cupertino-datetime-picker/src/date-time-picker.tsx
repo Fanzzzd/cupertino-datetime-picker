@@ -1,9 +1,10 @@
 "use client";
 
 import { Popover } from "@base-ui/react/popover";
+import * as React from "react";
 
 import { CalendarPanel } from "./calendar-panel";
-import { useControlled } from "./hooks";
+import { useBrowserLocale, useControlled } from "./hooks";
 import { formatClock, formatDay, hourCycleFor, type HourCycle } from "./time";
 import { TimePanel } from "./time-panel";
 import { cn } from "./utils";
@@ -71,13 +72,15 @@ function widestClocks(locale: string, hourCycle: HourCycle): string[] {
  * time as pills; each opens a popover — the calendar or the time panel —
  * anchored to it. Inline display lays the panels out in place.
  */
-export function DateTimePicker({
+// Memoized: a picker re-renders when its own props or state change, not with
+// every render of the form around it.
+export const DateTimePicker = React.memo(function DateTimePicker({
   value: valueProp,
   defaultValue = null,
   onChange,
   mode = "dateTime",
   display = "compact",
-  locale = navigator.language,
+  locale: localeProp,
   hourCycle: hourCycleProp,
   minuteInterval = 1,
   min,
@@ -87,6 +90,8 @@ export function DateTimePicker({
   labels,
 }: DateTimePickerProps) {
   const [value, setValue] = useControlled(valueProp, defaultValue, onChange);
+  const browserLocale = useBrowserLocale();
+  const locale = localeProp ?? browserLocale;
   const hourCycle = hourCycleProp ?? hourCycleFor(locale);
   const showDate = mode !== "time";
   const showTime = mode !== "date";
@@ -94,6 +99,15 @@ export function DateTimePicker({
   const draft = value ?? new Date();
   const dateLabel = labels?.date ?? "Date";
   const timeLabel = labels?.time ?? "Time";
+  const year = draft.getFullYear();
+  const widestDate = React.useMemo(
+    () => [dateLabel, ...widestDays(year, locale)],
+    [dateLabel, year, locale],
+  );
+  const widestTime = React.useMemo(
+    () => [timeLabel, ...widestClocks(locale, hourCycle)],
+    [timeLabel, locale, hourCycle],
+  );
 
   const calendar = (
     <CalendarPanel value={value} onChange={setValue} locale={locale} min={min} max={max} />
@@ -113,7 +127,7 @@ export function DateTimePicker({
       <Popover.Trigger className={pillClass} disabled={disabled} data-slot="time-trigger">
         <PillText
           text={value ? formatClock(value, locale, hourCycle) : timeLabel}
-          widest={[timeLabel, ...widestClocks(locale, hourCycle)]}
+          widest={widestTime}
         />
       </Popover.Trigger>
       <Popover.Portal>
@@ -160,10 +174,7 @@ export function DateTimePicker({
       {showDate && (
         <Popover.Root>
           <Popover.Trigger className={pillClass} disabled={disabled} data-slot="date-trigger">
-            <PillText
-              text={value ? formatDay(value, locale) : dateLabel}
-              widest={[dateLabel, ...widestDays(draft.getFullYear(), locale)]}
-            />
+            <PillText text={value ? formatDay(value, locale) : dateLabel} widest={widestDate} />
           </Popover.Trigger>
           <Popover.Portal>
             <Popover.Positioner sideOffset={8} align="center" className="isolate z-50">
@@ -177,4 +188,4 @@ export function DateTimePicker({
       {showTime && timePopover}
     </div>
   );
-}
+});

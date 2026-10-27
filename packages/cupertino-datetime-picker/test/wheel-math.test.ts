@@ -15,7 +15,7 @@ test("snapIndex rounds to the nearest row", () => {
 
 test("flingTarget projects the velocity and clamps", () => {
   expect(flingTarget(320, 0, 32, 100)).toBe(10);
-  expect(flingTarget(320, 1, 32, 100)).toBe(22);
+  expect(flingTarget(320, 1, 32, 100)).toBe(24);
   expect(flingTarget(320, -5, 32, 100)).toBe(0);
   expect(flingTarget(320, 50, 32, 100)).toBe(100);
 });
@@ -46,5 +46,5 @@ test("glideDuration leaves at the release speed", () => {
   // No speed, or a glide against it: a short settle.
   expect(glideDuration(12, 0)).toBe(180);
   expect(glideDuration(-12, 1)).toBe(180);
-  expect(glideDuration(5000, 1)).toBe(1600);
+  expect(glideDuration(5000, 1)).toBe(2000);
 });

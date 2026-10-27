@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { withTime } from "./calendar";
+import { useBrowserLocale } from "./hooks";
 import { SegmentedControl } from "./segmented-control";
 import { stepValue, typeDigit } from "./segments";
 import { crossesNoon, dayPeriodLabels, hourCycleFor, to12, to24, type HourCycle } from "./time";
@@ -49,7 +50,7 @@ type Segment = "hour" | "minute";
 export function TimePanel({
   value,
   onChange,
-  locale = navigator.language,
+  locale: localeProp,
   hourCycle: hourCycleProp,
   minuteInterval = 1,
   wheels = true,
@@ -57,6 +58,8 @@ export function TimePanel({
   className,
 }: TimePanelProps) {
   const labels = { ...TIME_LABELS, ...labelsProp };
+  const browserLocale = useBrowserLocale();
+  const locale = localeProp ?? browserLocale;
   const hourCycle = hourCycleProp ?? hourCycleFor(locale);
   const twelve = hourCycle === "h12";
   const hours24 = value.getHours();
@@ -71,15 +74,20 @@ export function TimePanel({
   const hourRef = React.useRef<HTMLInputElement>(null);
   const minuteRef = React.useRef<HTMLInputElement>(null);
 
+  // Only a different time is a change; the parent does not re-render for
+  // a wheel that came back round to where it was.
+  const emit = (next: Date) => {
+    if (next.getTime() !== value.getTime()) onChange(next);
+  };
   const setHour = (shown: number) =>
-    onChange(withTime(value, twelve ? to24(shown, pm) : shown, minutes));
+    emit(withTime(value, twelve ? to24(shown, pm) : shown, minutes));
   // Turning the hour wheel past 11 ↔ 12 carries into AM/PM, as on iOS.
   const turnHour = (shown: number, rows: number) =>
     twelve && crossesNoon(hour12, rows)
-      ? onChange(withTime(value, to24(shown, !pm), minutes))
+      ? emit(withTime(value, to24(shown, !pm), minutes))
       : setHour(shown);
-  const setMinute = (m: number) => onChange(withTime(value, hours24, m));
-  const setPm = (next: boolean) => onChange(withTime(value, to24(hour12, next), minutes));
+  const setMinute = (m: number) => emit(withTime(value, hours24, m));
+  const setPm = (next: boolean) => emit(withTime(value, to24(hour12, next), minutes));
 
   const focusSegment = (segment: Segment) => {
     const el = segment === "hour" ? hourRef.current : minuteRef.current;
@@ -217,7 +225,7 @@ export function TimePanel({
             onBeforeInput={onBeforeInput("hour")}
             onKeyDown={onSegmentKeyDown("hour")}
             onFocus={(e) => e.currentTarget.select()}
-            onBlur={() => setTyping(null)}
+            onBlur={() => typing && setTyping(null)}
             className={segmentClass}
             style={{ width: segmentWidth }}
             data-segment="hour"
@@ -238,7 +246,7 @@ export function TimePanel({
             onBeforeInput={onBeforeInput("minute")}
             onKeyDown={onSegmentKeyDown("minute")}
             onFocus={(e) => e.currentTarget.select()}
-            onBlur={() => setTyping(null)}
+            onBlur={() => typing && setTyping(null)}
             className={segmentClass}
             style={{ width: segmentWidth }}
             data-segment="minute"
