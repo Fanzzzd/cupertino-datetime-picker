@@ -475,12 +475,21 @@ test("a long trackpad flick on a looped wheel never reaches the end of its rows"
   const box = (await minute.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   const end = await minute.evaluate((el) => {
-    const w = window as unknown as { low: number; high: number };
+    const w = window as unknown as { low: number; high: number; fewest: number };
     w.low = el.scrollTop;
     w.high = el.scrollTop;
+    w.fewest = Infinity;
     el.addEventListener("scroll", () => {
       w.low = Math.min(w.low, el.scrollTop);
       w.high = Math.max(w.high, el.scrollTop);
+      // However fast it spins, the wheel is never blank.
+      const box = el.getBoundingClientRect();
+      const shown = [...el.querySelectorAll<HTMLElement>("[data-index] span")].filter((s) => {
+        const b = s.getBoundingClientRect();
+        const y = b.top + b.height / 2;
+        return Number(s.style.opacity) > 0.3 && y > box.top && y < box.bottom;
+      }).length;
+      w.fewest = Math.min(w.fewest, shown);
     });
     return el.scrollHeight - el.clientHeight;
   });
@@ -494,10 +503,11 @@ test("a long trackpad flick on a looped wheel never reaches the end of its rows"
     }
     await page.waitForTimeout(600);
   }
-  const { low, high } = await page.evaluate(() => {
-    const w = window as unknown as { low: number; high: number };
-    return { low: w.low, high: w.high };
+  const { low, high, fewest } = await page.evaluate(() => {
+    const w = window as unknown as { low: number; high: number; fewest: number };
+    return { low: w.low, high: w.high, fewest: w.fewest };
   });
+  expect(fewest).toBeGreaterThanOrEqual(4);
   expect(low).toBeGreaterThan(0);
   expect(high).toBeLessThan(end);
   // And it is not cut short: the flick runs its full length.

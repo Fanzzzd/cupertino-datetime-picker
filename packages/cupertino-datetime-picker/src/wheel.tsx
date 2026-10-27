@@ -44,11 +44,18 @@ export const BAND_EXTRA = 2;
 // way. A hard trackpad flick runs a few hundred; the wheel never moves itself
 // back mid-flick, because a scroll set during a gesture ends the gesture.
 const ROAD_ROWS = 500;
-// Rows on the page beyond the visible ones: only a pool of row elements
-// exists, moved along under the scroll position.
-const SPARE_ROWS = 8;
 const STOP_BLOCK = 16;
 const TYPEAHEAD_MS = 700;
+
+// Where a row `offset` rows from the centre is drawn on a drum of `radius`.
+function drum(offset: number, rowDegrees: number, radius: number) {
+  const angle = clamp(offset * rowDegrees, -90, 90);
+  const rad = (angle * Math.PI) / 180;
+  return {
+    transform: `translateY(${(radius * Math.sin(rad)).toFixed(2)}px) perspective(600px) rotateX(${-angle}deg)`,
+    opacity: Math.abs(angle) >= 90 ? "0" : String(clamp(Math.cos(rad) ** 0.75, 0.2, 1)),
+  };
+}
 
 type Drag = {
   startY: number;
@@ -83,11 +90,6 @@ export function Wheel({
   const base = loop ? Math.floor(copies / 2) * len : 0;
   const total = len * copies;
   const maxIndex = total - 1;
-  // A looped pool holds whole loops, so moving the wheel back by whole pools
-  // leaves every row element showing the same row in the same place.
-  const poolSize = loop
-    ? len * Math.ceil((visibleRows + SPARE_ROWS) / len)
-    : Math.min(len, visibleRows + SPARE_ROWS);
   const selected = Math.max(
     0,
     options.findIndex((o) => o.value === value),
@@ -98,6 +100,8 @@ export function Wheel({
   // One row of arc is one row of scroll.
   const radius = (visibleRows * itemHeight) / 2 - 4;
   const rowDegrees = ((itemHeight / radius) * 180) / Math.PI;
+  // Labels on the visible half of the drum, plus one each side.
+  const poolSize = Math.min(total, 2 * Math.ceil(90 / rowDegrees) + 3);
 
   // Physical row the wheel rests on; the value is `options[resting % len]`.
   const resting = React.useRef(base + selected);
@@ -137,8 +141,21 @@ export function Wheel({
 
   const optionAt = (physical: number) => options.at(mod(physical, len));
 
+  // Undo the drum: how far from the middle a point is, as an angle, is how
+  // many rows from the centre row it points at.
+  const rowAt = (el: HTMLElement, clientY: number) => {
+    const box = el.getBoundingClientRect();
+    const fromMiddle = clamp((clientY - box.top - box.height / 2) / radius, -1, 1);
+    const half = Math.floor(visibleRows / 2);
+    const turn = clamp((Math.asin(fromMiddle) * 180) / Math.PI / rowDegrees, -half, half);
+    return Math.round(el.scrollTop / itemHeight + turn);
+  };
+
   // Depth: rows sit on a drum. Each row turns away from the centre and is
   // drawn where the turned drum puts it, so rows bunch up toward the edges.
+  // The labels are not scrolled: they hang in a layer pinned to the wheel's
+  // window, and each frame turns the drum to the scroll position, so a fast
+  // flick can never show rows that are not drawn yet.
   const paint = () => {
     const el = scroller.current;
     if (!el) return;
@@ -149,21 +166,12 @@ export function Wheel({
     const nearest = snapIndex(el.scrollTop, itemHeight);
     for (let i = from; i < from + poolSize; i++) {
       const row = rows[mod(i, poolSize)] as HTMLElement;
+      const label = row.firstElementChild as HTMLElement;
       if (row.dataset.index !== String(i)) {
         row.dataset.index = String(i);
-        row.style.transform = `translateY(${pad + i * itemHeight}px)`;
-        row.firstElementChild!.textContent = optionAt(i)?.label ?? "";
+        label.textContent = optionAt(i)?.label ?? "";
       }
-      const label = row.firstElementChild as HTMLElement | null;
-      const offset = i - centre;
-      const angle = clamp(offset * rowDegrees, -90, 90);
-      const rad = (angle * Math.PI) / 180;
-      const shift = radius * Math.sin(rad) - offset * itemHeight;
-      if (label) {
-        label.style.transform = `translateY(${shift.toFixed(2)}px) perspective(600px) rotateX(${-angle}deg)`;
-        label.style.opacity =
-          Math.abs(angle) >= 90 ? "0" : String(clamp(Math.cos(rad) ** 0.75, 0.2, 1));
-      }
+      Object.assign(label.style, drum(i - centre, rowDegrees, radius));
       if (i === nearest) row.dataset.active = "";
       else delete row.dataset.active;
     }
@@ -205,10 +213,9 @@ export function Wheel({
     const from = resting.current;
     const turned = idx;
     if (loop) {
-      // Only a wheel far from the middle moves back, by whole pools.
+      // Only a wheel far from the middle moves back, by whole loops.
       const away = idx - (base + Math.floor(len / 2));
-      const centred =
-        Math.abs(away) > ROAD_ROWS / 2 ? idx - Math.round(away / poolSize) * poolSize : idx;
+      const centred = Math.abs(away) > ROAD_ROWS / 2 ? idx - Math.round(away / len) * len : idx;
       if (idx !== centred) {
         idx = centred;
         el.scrollTop = idx * itemHeight;
@@ -323,13 +330,7 @@ export function Wheel({
     if (!d.moved) {
       // A click: the row under the pointer becomes the value.
       el.style.scrollSnapType = "";
-      // Undo the drum: how far from the middle the pointer is, as an angle,
-      // is how many rows from the centre row it points at.
-      const box = el.getBoundingClientRect();
-      const fromMiddle = clamp((e.clientY - box.top - box.height / 2) / radius, -1, 1);
-      const half = Math.floor(visibleRows / 2);
-      const turn = clamp((Math.asin(fromMiddle) * 180) / Math.PI / rowDegrees, -half, half);
-      go(Math.round(el.scrollTop / itemHeight + turn));
+      go(rowAt(el, e.clientY));
       clickHandled.current = true;
       return;
     }
@@ -409,8 +410,7 @@ export function Wheel({
       clickHandled.current = false;
       return;
     }
-    const row = (e.target as HTMLElement).closest<HTMLElement>("[data-index]");
-    if (row) go(Number(row.dataset.index));
+    if (scroller.current) go(rowAt(scroller.current, e.clientY));
   };
 
   // Where the wheel can stop: one empty row per physical row. They never
@@ -430,9 +430,9 @@ export function Wheel({
     return { __html: html };
   }, [total, pad, itemHeight]);
 
-  // The labels, a pool rebuilt only when the options change, so a new value re-renders
-  // the wheel and not its rows. It is first drawn around the resting row;
-  // from then on `paint` moves the rows and sets their labels.
+  // The labels, a pool rebuilt only when the options change, so a new value
+  // re-renders the wheel and not its rows. It is first drawn around the
+  // resting row; from then on `paint` turns the drum and sets the labels.
   const [firstRest] = React.useState(() => base + selected);
   const rows = React.useMemo(() => {
     const at = clamp(firstRest - Math.floor(poolSize / 2), 0, total - poolSize);
@@ -444,7 +444,7 @@ export function Wheel({
           role="presentation"
           data-index={i}
           className={cn(
-            "absolute inset-x-0 top-0 flex items-center text-[22px] leading-none text-[var(--cdp-secondary)] tabular-nums data-active:text-[var(--cdp-label)]",
+            "absolute inset-x-0 flex items-center text-[22px] leading-none text-[var(--cdp-secondary)] tabular-nums data-active:text-[var(--cdp-label)]",
             align === "start"
               ? "justify-start"
               : align === "end"
@@ -452,17 +452,17 @@ export function Wheel({
                 : "justify-center",
           )}
           style={{
-            transform: `translateY(${pad + i * itemHeight}px)`,
+            top: pad,
             height: itemHeight,
             paddingInline:
               align === "end" ? `0 ${inset}px` : align === "start" ? `${inset}px 0` : undefined,
           }}
         >
-          <span>{options.at(i % len)?.label}</span>
+          <span style={drum(i - firstRest, rowDegrees, radius)}>{options.at(i % len)?.label}</span>
         </div>
       );
     });
-  }, [options, len, firstRest, poolSize, total, pad, itemHeight, align, inset]);
+  }, [options, len, firstRest, poolSize, total, pad, itemHeight, rowDegrees, radius, align, inset]);
 
   // A new pool is drawn on the drum before it is seen.
   const paintedRows = React.useRef(rows);
@@ -510,7 +510,13 @@ export function Wheel({
           style={{ height: total * itemHeight + 2 * pad }}
           onClick={onRowClick}
         >
-          <div ref={pool} className="absolute inset-x-0 top-0">
+          {/* Pinned to the wheel's window, so the scroll never carries the
+              labels; it takes no room, so the stops start at the top. */}
+          <div
+            ref={pool}
+            className="pointer-events-none sticky top-0"
+            style={{ height: visibleRows * itemHeight, marginBottom: -visibleRows * itemHeight }}
+          >
             {rows}
           </div>
           <div dangerouslySetInnerHTML={stops} />
