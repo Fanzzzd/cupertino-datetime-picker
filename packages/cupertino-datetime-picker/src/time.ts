@@ -31,21 +31,6 @@ export function to24(hour12: number, pm: boolean): number {
   return (hour12 % 12) + (pm ? 12 : 0);
 }
 
-/**
- * Whether turning a 12-hour wheel `rows` rows from `hour12` flips AM/PM. On
- * iOS the period changes each time the wheel passes between 11 and 12, so
- * the clock reads on: 11:30 AM, one row down, is 12:30 PM.
- */
-export function crossesNoon(hour12: number, rows: number): boolean {
-  const h = hour12 % 12;
-  const n = Math.abs(rows);
-  // Down: each landing on 12. Up: each leaving of 12.
-  const first = rows > 0 ? 12 - h : h;
-  const last = rows > 0 ? n : n - 1;
-  const passes = last >= first ? Math.floor((last - first) / 12) + 1 : 0;
-  return passes % 2 === 1;
-}
-
 export function dayPeriodLabels(locale: string): { am: string; pm: string } {
   const f = formatter(locale, { hour: "numeric", hourCycle: "h12" });
   const label = (hour: number) =>

@@ -5,9 +5,17 @@ import * as React from "react";
 import { withTime } from "./calendar";
 import { useBrowserLocale } from "./hooks";
 import { SegmentedControl } from "./segmented-control";
-import { stepValue, typeDigit } from "./segments";
-import { crossesNoon, dayPeriodLabels, hourCycleFor, to12, to24, type HourCycle } from "./time";
-import { cn, pad2 } from "./utils";
+import { dayPeriodLabels, hourCycleFor, to12, to24, type HourCycle } from "./time";
+import {
+  addedText,
+  enterText,
+  pressKey,
+  segmentText,
+  type FieldStep,
+  type Segment,
+  type Typing,
+} from "./time-field";
+import { cn, mod, pad2 } from "./utils";
 import { Wheel, WheelHighlight } from "./wheel";
 
 export type TimePanelLabels = {
@@ -38,7 +46,15 @@ export type TimePanelProps = {
   className?: string;
 };
 
-type Segment = "hour" | "minute";
+// The selection a segment had just before an edit, so an edit that replaced
+// it can be read back exactly. Read in the native `beforeinput`, which fires
+// even where React's synthetic one does not.
+const selections = new WeakMap<HTMLInputElement, [number, number]>();
+function recordSelection(e: Event) {
+  const input = e.target as HTMLInputElement;
+  if (input.selectionStart === null || input.selectionEnd === null) selections.delete(input);
+  else selections.set(input, [input.selectionStart, input.selectionEnd]);
+}
 
 /**
  * Time entry the way iOS 14+ does it, both halves at once: a field of
@@ -66,13 +82,13 @@ export function TimePanel({
   const minutes = value.getMinutes();
   const { hour: hour12, pm } = to12(hours24);
   const hourShown = twelve ? hour12 : hours24;
-  const hourMin = twelve ? 1 : 0;
-  const hourMax = twelve ? 12 : 23;
   const periods = dayPeriodLabels(locale);
 
-  const [typing, setTyping] = React.useState<{ segment: Segment; buffer: string } | null>(null);
+  const [typing, setTyping] = React.useState<Typing>(null);
   const hourRef = React.useRef<HTMLInputElement>(null);
   const minuteRef = React.useRef<HTMLInputElement>(null);
+  const field = { hours: hours24, minutes, typing };
+  const clock = { twelve, minuteInterval };
 
   // Only a different time is a change; the parent does not re-render for
   // a wheel that came back round to where it was.
@@ -81,11 +97,13 @@ export function TimePanel({
   };
   const setHour = (shown: number) =>
     emit(withTime(value, twelve ? to24(shown, pm) : shown, minutes));
-  // Turning the hour wheel past 11 ↔ 12 carries into AM/PM, as on iOS.
-  const turnHour = (shown: number, rows: number) =>
-    twelve && crossesNoon(hour12, rows)
-      ? emit(withTime(value, to24(shown, !pm), minutes))
-      : setHour(shown);
+  // Turning the hour wheel n rows is n hours on the clock, so passing 11 ↔ 12
+  // carries into AM/PM, as on iOS. A jump (no rows) keeps the period.
+  const turnHour = (shown: number, rows: number) => {
+    const turned = mod(hours24 + rows, 24);
+    if (twelve && to12(turned).hour === shown) emit(withTime(value, turned, minutes));
+    else setHour(shown);
+  };
   const setMinute = (m: number) => emit(withTime(value, hours24, m));
   const setPm = (next: boolean) => emit(withTime(value, to24(hour12, next), minutes));
 
@@ -95,82 +113,52 @@ export function TimePanel({
     el?.select();
   };
 
-  const typeInto = (segment: Segment, digit: string) => {
-    const buffer = typing?.segment === segment ? typing.buffer : "";
-    const step =
-      segment === "hour"
-        ? typeDigit(buffer, digit, hourMin, hourMax)
-        : typeDigit(buffer, digit, 0, 59);
-    if (step.value !== null) (segment === "hour" ? setHour : setMinute)(step.value);
-    if (step.done) {
-      setTyping(null);
-      if (segment === "hour") focusSegment("minute");
-    } else {
-      setTyping({ segment, buffer: step.buffer });
-    }
+  // The field model decided; write the time, keep what is being typed, and
+  // move focus if a segment completed.
+  const apply = (step: FieldStep, from: Segment) => {
+    setTyping(step.typing);
+    emit(withTime(value, step.hours, step.minutes));
+    if (step.focus !== from) focusSegment(step.focus);
   };
 
   const onSegmentKeyDown = (segment: Segment) => (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const key = e.key;
-    if (/^\d$/.test(key)) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const step = pressKey(field, segment, e.key, clock);
+    if (step) {
       e.preventDefault();
-      typeInto(segment, key);
-      return;
-    }
-    const by = key === "ArrowUp" ? 1 : key === "ArrowDown" ? -1 : 0;
-    if (by) {
-      e.preventDefault();
-      setTyping(null);
-      if (segment === "hour") setHour(stepValue(hourShown, by, hourMin, hourMax));
-      else setMinute(stepValue(minutes, by * minuteInterval, 0, 59));
-      return;
-    }
-    if (key === "ArrowLeft" && segment === "minute") {
-      e.preventDefault();
-      focusSegment("hour");
-    } else if (key === "ArrowRight" && segment === "hour") {
-      e.preventDefault();
-      focusSegment("minute");
-    } else if (key === "Backspace" || key === "Delete") {
-      e.preventDefault();
-      setTyping({ segment, buffer: "" });
-    } else if (twelve && (key === "a" || key === "A" || key === "p" || key === "P")) {
-      e.preventDefault();
-      setPm(key === "p" || key === "P");
-    } else if (key === "Enter") {
+      apply(step, segment);
+    } else if (e.key === "Enter") {
       e.currentTarget.blur();
-    } else if (key.length === 1 && !e.metaKey && !e.ctrlKey) {
+    } else if (e.key.length === 1) {
+      // Nothing else types into a segment.
       e.preventDefault();
     }
   };
 
-  // Mobile keypads and IMEs insert text without a key name; `beforeinput`
-  // carries the digit either way.
+  // Mobile keypads, IMEs and pastes insert text without a key name;
+  // `beforeinput` carries all of it at once.
   const onBeforeInput = (segment: Segment) => (e: React.FormEvent<HTMLInputElement>) => {
     e.preventDefault();
     const data = (e.nativeEvent as InputEvent).data ?? "";
-    for (const ch of data) if (/\d/.test(ch)) typeInto(segment, ch);
+    if (data) apply(enterText(field, segment, data, clock), segment);
   };
 
   // An engine that skipped `beforeinput` still changes the input: whatever
   // was added to the shown text is what was typed.
   const onInput = (segment: Segment) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const prev = shownText(segment);
-    const next = e.target.value;
-    // The caret can sit anywhere, so "06" can become "016": what is new lies
-    // between the unchanged start and the unchanged end.
-    let start = 0;
-    while (start < prev.length && prev[start] === next[start]) start++;
-    let end = 0;
-    while (end < prev.length - start && prev.at(-1 - end) === next.at(-1 - end)) end++;
-    for (const ch of next.slice(start, next.length - end)) if (/\d/.test(ch)) typeInto(segment, ch);
+    const added = addedText(shownText(segment), e.target.value, selections.get(e.target));
+    selections.delete(e.target);
+    if (added) apply(enterText(field, segment, added, clock), segment);
   };
 
-  const shownText = (segment: Segment) => {
-    if (typing?.segment === segment) return typing.buffer;
-    // Two digits on either clock, like the iOS field: 09:30, not 9:30.
-    return pad2(segment === "hour" ? hourShown : minutes);
-  };
+  const shownText = (segment: Segment) => segmentText(field, segment, twelve);
+  React.useEffect(() => {
+    const inputs = [hourRef.current, minuteRef.current];
+    for (const input of inputs) input?.addEventListener("beforeinput", recordSelection);
+    return () => {
+      for (const input of inputs) input?.removeEventListener("beforeinput", recordSelection);
+    };
+  }, []);
 
   // Each segment is wider than its two digits plus the (hidden) caret, so
   // the input never scrolls its text by a pixel on focus or while typing.

@@ -1,7 +1,6 @@
 import { expect, test } from "vitest";
 
 import {
-  crossesNoon,
   dayPeriodLabels,
   formatClock,
   hourCycleFor,
@@ -34,19 +33,4 @@ test("labels come from Intl", () => {
   expect(weekdayNames("de-DE", 1)[0]).toBe("M");
   expect(formatClock(new Date(2026, 8, 5, 18, 30), "en-US", "h12")).toBe("6:30 PM");
   expect(formatClock(new Date(2026, 8, 5, 18, 30), "en-US", "h23")).toBe("18:30");
-});
-
-test("the 12-hour wheel flips AM/PM as it passes between 11 and 12", () => {
-  expect(crossesNoon(11, 1)).toBe(true);
-  expect(crossesNoon(12, -1)).toBe(true);
-  expect(crossesNoon(12, 1)).toBe(false);
-  expect(crossesNoon(1, -1)).toBe(false);
-  expect(crossesNoon(10, 2)).toBe(true);
-  expect(crossesNoon(9, 1)).toBe(false);
-  expect(crossesNoon(6, 0)).toBe(false);
-  // A full turn and more passes the boundary once per turn.
-  expect(crossesNoon(11, 13)).toBe(false);
-  expect(crossesNoon(11, 25)).toBe(true);
-  expect(crossesNoon(1, -2)).toBe(true);
-  expect(crossesNoon(1, -14)).toBe(false);
 });

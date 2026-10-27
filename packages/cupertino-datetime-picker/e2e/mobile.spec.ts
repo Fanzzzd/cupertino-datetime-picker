@@ -156,4 +156,11 @@ test("the keypad path: inserted text without key events", async ({ page }) => {
   // Focus moved on to the minute segment.
   await page.keyboard.insertText("05");
   await expect(value(page)).toHaveText("Sep 5, 2026 11:05 PM");
+  // Several digits in one insertion (a paste, an IME) are typed in order.
+  await hourField.tap();
+  await page.keyboard.insertText("12");
+  await expect(value(page)).toHaveText("Sep 5, 2026 12:05 PM");
+  await hourField.tap();
+  await page.keyboard.insertText("930");
+  await expect(value(page)).toHaveText("Sep 5, 2026 9:30 PM");
 });
