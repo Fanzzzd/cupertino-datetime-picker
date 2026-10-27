@@ -105,9 +105,14 @@ test("goTo glides; reduced motion lands at once", () => {
   still.goTo(4, 0);
   expect(still.step(0)).toBe(false);
   expect(still.pos).toBe(4 * H);
-  still.wheel(0, 100);
-  expect(still.step(1)).toBe(false);
-  expect(still.row).toBe(7);
+  // Small deltas add up, and land once the stream stops.
+  for (let t = 0; t < 60; t += 4) {
+    still.wheel(t, 8);
+    still.step(t);
+  }
+  expect(still.pos).toBe(4 * H + 120);
+  expect(still.step(500)).toBe(false);
+  expect(still.row).toBe(8);
 });
 
 test("a held wheel stays held", () => {

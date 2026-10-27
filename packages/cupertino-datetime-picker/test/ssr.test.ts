@@ -27,3 +27,9 @@ test("a disabled inline picker takes no input", () => {
   );
   expect(html).toMatch(/data-display="inline"[^>]*inert|inert[^>]*data-display="inline"/);
 });
+
+test("an empty inline time picker renders no clock on the server", () => {
+  const html = renderToString(createElement(DateTimePicker, { display: "inline", mode: "time" }));
+  // Now differs between server and browser; the panel waits for hydration.
+  expect(html).not.toContain('data-slot="time"');
+});

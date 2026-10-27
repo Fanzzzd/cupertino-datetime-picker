@@ -84,17 +84,18 @@ export function TimePanel({
   const hourShown = twelve ? hour12 : hours24;
   const periods = dayPeriodLabels(locale);
 
-  // What is being typed belongs to the time it was typed over: a time set
-  // from outside drops it, so the field shows the new time.
-  const [typed, setTyped] = React.useState<{ typing: Typing; at: number }>({
-    typing: null,
-    at: value.getTime(),
-  });
-  const typing = typed.at === value.getTime() ? typed.typing : null;
-  const setTyping = (next: Typing, at = value.getTime()) => setTyped({ typing: next, at });
+  // Digits typed into a segment that has not completed are held here, with
+  // the time they would make, and written only when the segment completes,
+  // on Enter, or when focus leaves the field: a half-typed "1" is not 1:30,
+  // and min or max would clamp it and lose what was typed. They belong to
+  // the time they were typed over; a time set from outside drops them.
+  type Held = { typing: Typing; hours: number; minutes: number; at: number };
+  const [held, setHeld] = React.useState<Held | null>(null);
+  const live = held?.at === value.getTime() ? held : null;
+  const typing = live?.typing ?? null;
   const hourRef = React.useRef<HTMLInputElement>(null);
   const minuteRef = React.useRef<HTMLInputElement>(null);
-  const field = { hours: hours24, minutes, typing };
+  const field = { hours: live?.hours ?? hours24, minutes: live?.minutes ?? minutes, typing };
   const clock = { twelve, minuteInterval };
 
   // Only a different time is a change; the parent does not re-render for
@@ -120,16 +121,34 @@ export function TimePanel({
     el?.select();
   };
 
-  // The field model decided; write the time, keep what is being typed, and
-  // move focus if a segment completed.
+  // Write a time the field arrived at. One that only moved focus or the
+  // buffer leaves the value alone, to the second and across a repeated DST
+  // hour.
+  const write = (hours: number, mins: number) => {
+    if (hours !== hours24 || mins !== minutes) emit(withTime(value, hours, mins));
+  };
+
+  // The field model decided: hold what is half typed, write what completed,
+  // and move focus if a segment completed.
   const apply = (step: FieldStep, from: Segment) => {
-    // A step that only moves focus or the buffer leaves the time alone, to
-    // the second and across a repeated DST hour.
-    const changed = step.hours !== hours24 || step.minutes !== minutes;
-    const next = changed ? withTime(value, step.hours, step.minutes) : value;
-    setTyping(step.typing, next.getTime());
-    emit(next);
+    if (step.typing) {
+      setHeld({
+        typing: step.typing,
+        hours: step.hours,
+        minutes: step.minutes,
+        at: value.getTime(),
+      });
+    } else {
+      setHeld(null);
+      write(step.hours, step.minutes);
+    }
     if (step.focus !== from) focusSegment(step.focus);
+  };
+
+  const commit = () => {
+    if (!live) return;
+    setHeld(null);
+    write(live.hours, live.minutes);
   };
 
   const onSegmentKeyDown = (segment: Segment) => (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -140,7 +159,7 @@ export function TimePanel({
       apply(step, segment);
     } else if (e.key === "Enter") {
       // Commit what is typed; focus stays in the field.
-      setTyping(null);
+      commit();
       e.currentTarget.select();
     } else if (e.key.length === 1) {
       // Nothing else types into a segment.
@@ -215,6 +234,11 @@ export function TimePanel({
           aria-label={labels.time}
           className="flex h-9 items-center rounded-full bg-[var(--cdp-fill)] px-1 transition-shadow duration-150 focus-within:ring-[3px] focus-within:ring-[var(--cdp-tint-ring)]"
           data-slot="time-field"
+          // Leaving the field commits what is typed; moving between its
+          // segments does not.
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) commit();
+          }}
         >
           <input
             ref={hourRef}
@@ -226,7 +250,6 @@ export function TimePanel({
             onBeforeInput={onBeforeInput("hour")}
             onKeyDown={onSegmentKeyDown("hour")}
             onFocus={(e) => e.currentTarget.select()}
-            onBlur={() => typing && setTyping(null)}
             className={segmentClass}
             style={{ width: segmentWidth }}
             data-segment="hour"
@@ -247,7 +270,6 @@ export function TimePanel({
             onBeforeInput={onBeforeInput("minute")}
             onKeyDown={onSegmentKeyDown("minute")}
             onFocus={(e) => e.currentTarget.select()}
-            onBlur={() => typing && setTyping(null)}
             className={segmentClass}
             style={{ width: segmentWidth }}
             data-segment="minute"

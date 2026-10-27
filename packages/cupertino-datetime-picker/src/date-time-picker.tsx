@@ -5,7 +5,7 @@ import * as React from "react";
 
 import { clampTime, withTime } from "./calendar";
 import { CalendarPanel } from "./calendar-panel";
-import { useBrowserLocale, useControlled } from "./hooks";
+import { useBrowserLocale, useControlled, useHydrated } from "./hooks";
 import { formatClock, formatDay, hourCycleFor, type HourCycle } from "./time";
 import { TimePanel } from "./time-panel";
 import { cn } from "./utils";
@@ -91,6 +91,9 @@ export const DateTimePicker = React.memo(function DateTimePicker({
   labels,
 }: DateTimePickerProps) {
   const [value, setValue] = useControlled(valueProp, defaultValue, onChange);
+  // An empty picker's panels start from now, which the server and the
+  // browser do not agree on; an inline panel showing it waits for hydration.
+  const hydrated = useHydrated();
   const browserLocale = useBrowserLocale();
   const locale = localeProp ?? browserLocale;
   const hourCycle = hourCycleProp ?? hourCycleFor(locale);
@@ -111,8 +114,15 @@ export const DateTimePicker = React.memo(function DateTimePicker({
   );
 
   // Every value written stays within [min, max], to the minute: a time
-  // turned past a limit springs back to it, as on iOS.
-  const write = (next: Date) => setValue(clampTime(next, min, max));
+  // turned past a limit springs back to it, as on iOS. A clamp back to the
+  // value it already has calls no onChange, but still redraws, so the wheel
+  // turned past the limit returns.
+  const [, redraw] = React.useReducer((n: number) => n + 1, 0);
+  const write = (next: Date) => {
+    const clamped = clampTime(next, min, max);
+    if (value && clamped.getTime() === value.getTime()) redraw();
+    else setValue(clamped);
+  };
   // A day picked into an empty picker keeps the time the clock shows.
   const pickDay = (day: Date) =>
     write(value ? day : withTime(day, draft.getHours(), draft.getMinutes()));
@@ -170,7 +180,7 @@ export const DateTimePicker = React.memo(function DateTimePicker({
               {timePopover}
             </div>
           ) : (
-            time
+            (value || hydrated) && time
           ))}
       </div>
     );

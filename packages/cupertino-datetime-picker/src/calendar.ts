@@ -122,11 +122,9 @@ export function yearRange(
   if (min && max) return [min.getFullYear(), max.getFullYear()];
   let from = min ? min.getFullYear() : Math.min(thisYear - span, year);
   let to = max ? max.getFullYear() : Math.max(thisYear + span, year);
-  // A limit far from today: the span runs from it instead.
-  if (to < from) {
-    if (min) to = from + span;
-    else from = to - span;
-  }
+  // A single limit far from today: the span runs from it.
+  if (min && !max) to = Math.max(to, from + span);
+  if (max && !min) from = Math.min(from, to - span);
   return [from, to];
 }
 

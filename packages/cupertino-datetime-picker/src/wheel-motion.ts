@@ -134,7 +134,7 @@ export class WheelMotion {
         return false;
       }
       case "chase": {
-        if (t - m.last > WHEEL_IDLE_MS || this.bounds.instant) {
+        if (t - m.last > WHEEL_IDLE_MS) {
           // The stream ended: land on the row nearest the target, leaving at
           // the speed the chase was moving.
           const v = this.bounds.instant ? 0 : (m.target - this.pos) / CHASE_MS;
@@ -143,7 +143,9 @@ export class WheelMotion {
         }
         const dt = Math.max(0, t - m.at);
         m.at = t;
-        this.pos += (m.target - this.pos) * (1 - Math.exp(-dt / CHASE_MS));
+        // Reduced motion follows the input exactly, with no easing.
+        if (this.bounds.instant) this.pos = m.target;
+        else this.pos += (m.target - this.pos) * (1 - Math.exp(-dt / CHASE_MS));
         return true;
       }
     }

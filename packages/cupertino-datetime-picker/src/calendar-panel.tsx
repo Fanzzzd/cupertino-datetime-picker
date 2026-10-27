@@ -114,7 +114,7 @@ export function CalendarPanel({
     setSeen(value);
     if (value && monthDiff(view, yearMonthOf(value)) !== 0) {
       setDir(0);
-      setView(yearMonthOf(value));
+      setView(clampMonth(yearMonthOf(value), min, max));
       setFocusDate(value);
     }
   }

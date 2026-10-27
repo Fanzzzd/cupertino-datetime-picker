@@ -94,9 +94,9 @@ test("yearRange reaches the value's year, or spans min to max", () => {
     2020, 2030,
   ]);
   // A min far ahead still leaves years to pick.
-  const [from, to] = yearRange(2026, 2026, 100, new Date(2200, 0, 1));
-  expect(from).toBe(2200);
-  expect(to).toBeGreaterThanOrEqual(2200);
+  // The panel passes the view's year, already clamped into range.
+  expect(yearRange(2026, 2200, 100, new Date(2200, 0, 1))).toEqual([2200, 2300]);
+  expect(yearRange(2026, 1800, 100, undefined, new Date(1800, 0, 1))).toEqual([1700, 1800]);
 });
 
 test("clampTime keeps instants inside min and max", () => {

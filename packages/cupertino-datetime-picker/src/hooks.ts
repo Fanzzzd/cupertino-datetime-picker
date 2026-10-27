@@ -44,3 +44,16 @@ export function usePrefersReducedMotion(): boolean {
     () => false,
   );
 }
+
+/** False on the server and during hydration, true after: for markup that depends on now. */
+export function useHydrated(): boolean {
+  return React.useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
+}
+
+function subscribeNever() {
+  return () => {};
+}

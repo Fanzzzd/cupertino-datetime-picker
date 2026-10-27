@@ -710,3 +710,23 @@ test("under CSS zoom a drag follows the pointer", async ({ page }) => {
   expect(Number(await minute.getAttribute("data-position")) - before).toBeCloseTo(3, 0);
   await page.mouse.up();
 });
+
+test("half-typed digits are not clamped away by min", async ({ page }) => {
+  // min 2 PM: a lone "1" would be 1:30 PM, before it.
+  await open(page, `&min=${new Date(2026, 8, 5, 14, 0).getTime()}`);
+  await timeTrigger(page).click();
+  await timePopup(page).getByRole("textbox", { name: "Hour" }).click();
+  await page.keyboard.type("11");
+  await expect(value(page)).toHaveText("Sep 5, 2026 11:30 PM");
+});
+
+test("with reduced motion, small trackpad deltas still turn a wheel", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await open(page);
+  await timeTrigger(page).click();
+  const minute = wheel(page, "Minute");
+  const box = (await minute.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 8);
+  await expect(minute).toHaveAttribute("aria-valuenow", "40");
+});
