@@ -204,7 +204,7 @@ export function CalendarPanel({
           type="button"
           aria-expanded={picking}
           onClick={togglePicking}
-          className="flex h-9 items-center gap-1 rounded-lg px-1.5 text-[17px] font-semibold tracking-[-0.01em] text-[var(--cdp-label)] transition-opacity outline-none active:opacity-50 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]"
+          className="flex h-9 items-center gap-1 rounded-lg px-1.5 text-[17px] font-semibold tracking-[-0.01em] text-[var(--cdp-label)] transition-[opacity,color] outline-none active:opacity-50 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] aria-expanded:text-[var(--cdp-tint)]"
         >
           <span>{formatMonthYear(viewDate, locale)}</span>
           <Chevron
@@ -217,8 +217,8 @@ export function CalendarPanel({
         <div className="grid">
           <button
             type="button"
-            tabIndex={picking ? 0 : -1}
-            aria-hidden={!picking}
+            // Hidden layers are inert: nothing invisible takes focus or a key.
+            inert={!picking}
             onClick={togglePicking}
             className={cn(
               "col-start-1 row-start-1 h-9 self-center justify-self-end rounded-lg px-2 text-[17px] font-semibold text-[var(--cdp-tint)] transition-opacity duration-150 outline-none active:opacity-50 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]",
@@ -232,7 +232,7 @@ export function CalendarPanel({
               "col-start-1 row-start-1 flex items-center transition-opacity duration-150",
               picking && "pointer-events-none opacity-0",
             )}
-            aria-hidden={picking}
+            inert={picking}
           >
             <button
               type="button"
@@ -267,13 +267,13 @@ export function CalendarPanel({
             "col-start-1 row-start-1 transition-[opacity,transform] duration-200",
             picking && "pointer-events-none scale-95 opacity-0",
           )}
-          aria-hidden={picking}
+          inert={picking}
         >
           <div className="grid grid-cols-7" aria-hidden>
-            {weekdayNames(locale, weekStart).map((name, i) => (
+            {weekdayNames(locale, weekStart, "short").map((name, i) => (
               <div
                 key={i}
-                className="flex h-8 items-center justify-center text-[13px] font-semibold text-[var(--cdp-tertiary)]"
+                className="flex h-8 items-center justify-center text-[13px] font-semibold text-[var(--cdp-secondary)] uppercase"
               >
                 {name}
               </div>
@@ -335,7 +335,7 @@ export function CalendarPanel({
             "cdp-wheel-mask relative col-start-1 row-start-1 flex items-center justify-center gap-2 px-2 transition-[opacity,transform] duration-200",
             !picking && "pointer-events-none scale-95 opacity-0",
           )}
-          aria-hidden={!picking}
+          inert={!picking}
           data-slot="month-year"
         >
           <WheelHighlight className="inset-x-2" />
@@ -345,14 +345,17 @@ export function CalendarPanel({
             value={view.month}
             loop
             visibleRows={7}
+            align="start"
+            inset={8}
             onChange={(month) => show({ year: view.year, month }, 0)}
-            className="w-40"
+            className="w-36"
           />
           <Wheel
             aria-label={labels.year}
             options={years}
             value={view.year}
             visibleRows={7}
+            align="start"
             onChange={(year) => show({ year, month: view.month }, 0)}
             className="w-24"
           />

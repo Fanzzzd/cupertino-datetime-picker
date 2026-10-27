@@ -29,7 +29,7 @@ export type DateTimePickerProps = {
 
 /** The compact pill and its popover, for composing your own rows. */
 export const pillClass =
-  "inline-flex h-[34px] shrink-0 items-center rounded-lg bg-[var(--cdp-fill)] px-3 text-[17px] leading-none whitespace-nowrap text-[var(--cdp-label)] tabular-nums transition-[background-color,color] outline-none hover:bg-[var(--cdp-fill-hover)] focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] active:opacity-60 disabled:opacity-40 data-popup-open:text-[var(--cdp-tint)]";
+  "inline-flex h-9 shrink-0 items-center rounded-full bg-[var(--cdp-fill)] px-3 text-[17px] leading-none whitespace-nowrap text-[var(--cdp-label)] tabular-nums transition-[background-color,color] outline-none hover:bg-[var(--cdp-fill-hover)] focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] active:opacity-60 disabled:opacity-40 data-popup-open:text-[var(--cdp-tint)]";
 
 export const popupClass =
   "cdp origin-(--transform-origin) rounded-[13px] bg-[var(--cdp-bg)] shadow-[var(--cdp-shadow)] outline-none data-open:animate-[cdp-pop-in_260ms_cubic-bezier(0.18,0.9,0.32,1.15)] data-closed:animate-[cdp-pop-out_140ms_ease-in]";
@@ -153,7 +153,7 @@ export function DateTimePicker({
 
   return (
     <div
-      className={cn("cdp inline-flex flex-wrap items-center justify-end gap-2", className)}
+      className={cn("cdp inline-flex flex-wrap items-center justify-end gap-1", className)}
       data-slot="date-time-picker"
       data-display="compact"
     >

@@ -5,7 +5,7 @@ import * as React from "react";
 import { withTime } from "./calendar";
 import { SegmentedControl } from "./segmented-control";
 import { stepValue, typeDigit } from "./segments";
-import { dayPeriodLabels, hourCycleFor, to12, to24, type HourCycle } from "./time";
+import { crossesNoon, dayPeriodLabels, hourCycleFor, to12, to24, type HourCycle } from "./time";
 import { cn, pad2 } from "./utils";
 import { Wheel, WheelHighlight } from "./wheel";
 
@@ -73,6 +73,11 @@ export function TimePanel({
 
   const setHour = (shown: number) =>
     onChange(withTime(value, twelve ? to24(shown, pm) : shown, minutes));
+  // Turning the hour wheel past 11 ↔ 12 carries into AM/PM, as on iOS.
+  const turnHour = (shown: number, rows: number) =>
+    twelve && crossesNoon(hour12, rows)
+      ? onChange(withTime(value, to24(shown, !pm), minutes))
+      : setHour(shown);
   const setMinute = (m: number) => onChange(withTime(value, hours24, m));
   const setPm = (next: boolean) => onChange(withTime(value, to24(hour12, next), minutes));
 
@@ -252,6 +257,8 @@ export function TimePanel({
       </div>
 
       {wheels && (
+        // Columns spaced like iOS: hours end against the minutes, minutes and
+        // the period start after them, with the gaps the iOS wheel uses.
         <div className="cdp-wheel-mask relative flex justify-center" data-slot="time-wheels">
           <WheelHighlight />
           <Wheel
@@ -259,24 +266,33 @@ export function TimePanel({
             options={hourOptions}
             value={hourShown}
             loop
-            onChange={setHour}
-            className="w-16"
+            visibleRows={7}
+            align="end"
+            inset={twelve ? 22 : 24}
+            onChange={turnHour}
+            className="w-20"
           />
           <Wheel
             aria-label={labels.minute}
             options={minuteOptions}
             value={minutes - (minutes % minuteInterval)}
             loop
+            visibleRows={7}
+            align="start"
+            inset={twelve ? 23 : 25}
             onChange={setMinute}
-            className="w-16"
+            className={twelve ? "w-[74px]" : "w-20"}
           />
           {twelve && (
             <Wheel
               aria-label={labels.dayPeriod}
               options={periodOptions}
               value={pm ? 1 : 0}
+              visibleRows={7}
+              align="start"
+              inset={9}
               onChange={(v) => setPm(v === 1)}
-              className="w-16"
+              className="w-[70px]"
             />
           )}
         </div>

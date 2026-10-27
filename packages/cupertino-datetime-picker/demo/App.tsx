@@ -7,8 +7,8 @@ const LOCALES = ["en-US", "en-GB", "zh-CN", "ja-JP", "de-DE", "fr-FR"];
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[52px] items-center justify-between gap-4 px-4 py-2 not-last:border-b not-last:border-black/8 dark:not-last:border-white/10">
-      <span className="text-[17px] text-black dark:text-white">{label}</span>
+    <div className="flex min-h-[52px] items-center justify-between gap-3 px-4 py-2 not-last:border-b not-last:border-black/8 dark:not-last:border-white/10">
+      <span className="shrink-0 text-[17px] text-black dark:text-white">{label}</span>
       {children}
     </div>
   );
@@ -91,7 +91,7 @@ export function App() {
       </Group>
 
       <Group title="Compact">
-        <Row label="Date & Time">
+        <Row label="Starts">
           <DateTimePicker value={value} onChange={setValue} locale={locale} />
         </Row>
         <Row label="Date">

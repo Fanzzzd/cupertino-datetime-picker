@@ -9,6 +9,7 @@
   --cdp-on-tint: #fff;
   --cdp-fill: rgba(120, 120, 128, 0.12);
   --cdp-fill-hover: rgba(120, 120, 128, 0.2);
+  --cdp-wheel-band: rgba(116, 116, 128, 0.08);
   --cdp-label: #000;
   --cdp-secondary: rgba(60, 60, 67, 0.6);
   --cdp-tertiary: rgba(60, 60, 67, 0.3);
@@ -23,6 +24,7 @@
   --cdp-tint: #0a84ff;
   --cdp-fill: rgba(120, 120, 128, 0.24);
   --cdp-fill-hover: rgba(120, 120, 128, 0.32);
+  --cdp-wheel-band: rgba(118, 118, 128, 0.18);
   --cdp-label: #fff;
   --cdp-secondary: rgba(235, 235, 245, 0.6);
   --cdp-tertiary: rgba(235, 235, 245, 0.3);

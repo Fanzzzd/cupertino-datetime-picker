@@ -71,6 +71,33 @@ test("the month/year wheels keep the panel's height and close with Done", async 
   await expect(popup.getByRole("grid")).toHaveAccessibleName("August 2026");
 });
 
+test("only the showing layer takes focus, and the open title is tinted", async ({ page }) => {
+  await open(page);
+  await dateTrigger(page).click();
+  const popup = datePopup(page);
+  const title = popup.getByRole("button", { name: /September 2026/ });
+  const focusable = (locator: Locator) =>
+    locator.evaluate((el: HTMLElement) => {
+      el.focus();
+      return document.activeElement === el;
+    });
+  const month = popup.getByRole("spinbutton", { name: "Month" });
+  const done = popup.getByRole("button", { name: "Done" });
+  const previous = popup.getByRole("button", { name: "Previous month" });
+  expect(await focusable(month)).toBe(false);
+  expect(await focusable(done)).toBe(false);
+  expect(await focusable(previous)).toBe(true);
+  const rest = await title.evaluate((el) => getComputedStyle(el).color);
+
+  await title.click();
+  await expect(month).toBeVisible();
+  expect(await focusable(previous)).toBe(false);
+  expect(await focusable(popup.getByRole("gridcell", { name: /September 5, 2026/ }))).toBe(false);
+  expect(await focusable(month)).toBe(true);
+  expect(await focusable(done)).toBe(true);
+  await expect.poll(() => title.evaluate((el) => getComputedStyle(el).color)).not.toBe(rest);
+});
+
 test("the keyboard walks the grid across months", async ({ page }) => {
   await open(page);
   await dateTrigger(page).click();
@@ -186,6 +213,50 @@ test("a mouse drag flings a wheel past where it was released", async ({ page }) 
   await page.waitForTimeout(150);
   await page.mouse.up();
   await expect(year).toHaveAttribute("aria-valuenow", String(rested - 2));
+});
+
+test("the hour wheel carries into AM/PM between 11 and 12, as on iOS", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  const hour = wheel(page, "Hour");
+  await hour.focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowDown");
+  await expect(value(page)).toHaveText("Sep 5, 2026 11:30 PM");
+  await page.keyboard.press("ArrowDown");
+  await expect(value(page)).toHaveText("Sep 5, 2026 12:30 AM");
+  await page.keyboard.press("ArrowDown");
+  await expect(value(page)).toHaveText("Sep 5, 2026 1:30 AM");
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("ArrowUp");
+  await expect(value(page)).toHaveText("Sep 5, 2026 11:30 PM");
+});
+
+test("wheel columns align like iOS: hours end where minutes begin", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  const centre = (name: string) =>
+    wheel(page, name)
+      .locator("[data-active] span")
+      .evaluate((el) => {
+        const b = el.getBoundingClientRect();
+        return { left: b.left, right: b.right };
+      });
+  const hour = wheel(page, "Hour");
+  await hour.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await expect(hour).toHaveAttribute("aria-valuenow", "9");
+  await page.waitForTimeout(400);
+  const nine = await centre("Hour");
+  const minute = await centre("Minute");
+  await page.keyboard.press("ArrowDown");
+  await expect(hour).toHaveAttribute("aria-valuenow", "10");
+  await page.waitForTimeout(400);
+  const ten = await centre("Hour");
+  expect(Math.abs(ten.right - nine.right)).toBeLessThan(1);
+  expect(ten.left).toBeLessThan(nine.left);
+  expect(minute.left - nine.right).toBeGreaterThan(40);
 });
 
 test("the segmented control and 24-hour locales", async ({ page }) => {

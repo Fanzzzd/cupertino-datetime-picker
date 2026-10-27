@@ -11,14 +11,28 @@ export type WheelOption = { value: number; label: string };
 export type WheelProps = {
   options: WheelOption[];
   value: number;
-  onChange: (value: number) => void;
+  /**
+   * `rows` is how far the wheel turned to get there, in rows (negative is
+   * up), so a looped wheel can tell 11 → 12 from 1 → 12.
+   */
+  onChange: (value: number, rows: number) => void;
   /** Hours and minutes wrap around like the iOS clock wheels. */
   loop?: boolean;
   itemHeight?: number;
   visibleRows?: number;
+  /** Where the labels sit in the column; iOS right-aligns hours and left-aligns minutes. */
+  align?: "start" | "center" | "end";
+  /** Space between the column's aligned edge and its labels, in px. */
+  inset?: number;
   "aria-label": string;
   className?: string;
 };
+
+/** Degrees of drum per row: rows sit on a cylinder, as on the iOS picker. */
+const ROW_DEGREES = 22;
+
+/** The band behind the centre row is a little taller than a row, like iOS's. */
+export const BAND_EXTRA = 2;
 
 // Looped wheels render the options this many times and rest in the middle
 // copy, so a fling always has road in both directions.
@@ -47,6 +61,8 @@ export function Wheel({
   loop = false,
   itemHeight = 32,
   visibleRows = 5,
+  align = "center",
+  inset = 0,
   "aria-label": ariaLabel,
   className,
 }: WheelProps) {
@@ -61,6 +77,8 @@ export function Wheel({
     options.findIndex((o) => o.value === value),
   );
   const pad = ((visibleRows - 1) / 2) * itemHeight;
+  // The drum's radius, so that one row of arc is one row of scroll.
+  const radius = itemHeight / ((ROW_DEGREES * Math.PI) / 180);
 
   // Physical row the wheel rests on; the value is `options[resting % len]`.
   const resting = React.useRef(base + selected);
@@ -88,14 +106,16 @@ export function Wheel({
 
   // Only a different row is a change: settling where the wheel already was
   // (including the first layout) must not write anything.
-  const report = (physical: number) => {
+  const report = (physical: number, from: number) => {
     const option = optionAt(physical);
-    if (option && option.value !== valueRef.current) onChangeRef.current(option.value);
+    if (option && option.value !== valueRef.current)
+      onChangeRef.current(option.value, physical - from);
   };
 
   const optionAt = (physical: number) => options.at(mod(physical, len));
 
-  // Depth: rows tilt away from the centre, like the drum of a real picker.
+  // Depth: rows sit on a drum. Each row turns away from the centre and is
+  // drawn where the turned drum puts it, so rows bunch up toward the edges.
   const paint = () => {
     const el = scroller.current;
     if (!el) return;
@@ -107,10 +127,18 @@ export function Wheel({
     const nearest = snapIndex(el.scrollTop, itemHeight);
     for (let i = from; i <= to; i++) {
       const row = rows[i] as HTMLElement;
+      // The label moves, not the row: rows are the snap targets, and WebKit
+      // snaps to where a transformed row is drawn.
+      const label = row.firstElementChild as HTMLElement | null;
       const offset = i - centre;
-      const angle = clamp(offset * 22, -85, 85);
-      row.style.transform = `perspective(600px) rotateX(${-angle}deg)`;
-      row.style.opacity = String(clamp(1 - Math.abs(offset) * 0.28, 0.12, 1));
+      const angle = clamp(offset * ROW_DEGREES, -90, 90);
+      const rad = (angle * Math.PI) / 180;
+      const shift = radius * Math.sin(rad) - offset * itemHeight;
+      if (label) {
+        label.style.transform = `translateY(${shift.toFixed(2)}px) perspective(600px) rotateX(${-angle}deg)`;
+        label.style.opacity =
+          Math.abs(angle) >= 90 ? "0" : String(clamp(Math.cos(rad) ** 1.5, 0.15, 1));
+      }
       if (i === nearest) row.dataset.active = "";
       else delete row.dataset.active;
     }
@@ -149,6 +177,8 @@ export function Wheel({
     }
     arriving.current = null;
     let idx = snapIndex(el.scrollTop, itemHeight);
+    const from = resting.current;
+    const turned = idx;
     if (loop) {
       const centred = base + mod(idx, len);
       if (idx !== centred) {
@@ -157,13 +187,14 @@ export function Wheel({
       }
     }
     resting.current = idx;
-    report(idx);
+    report(turned, from);
   };
 
   const go = (physical: number, smooth = true) => {
     const target = clamp(physical, 0, maxIndex);
+    const from = resting.current;
     resting.current = target;
-    report(target);
+    report(target, from);
     scrollToIndex(target, smooth);
   };
 
@@ -239,8 +270,12 @@ export function Wheel({
     if (!d.moved) {
       // A click: the row under the pointer becomes the value.
       el.style.scrollSnapType = "";
-      const y = e.clientY - el.getBoundingClientRect().top;
-      go(Math.floor((el.scrollTop + y - pad) / itemHeight));
+      // Undo the drum: how far from the middle the pointer is, as an angle,
+      // is how many rows from the centre row it points at.
+      const box = el.getBoundingClientRect();
+      const fromMiddle = clamp((e.clientY - box.top - box.height / 2) / radius, -1, 1);
+      const turn = (Math.asin(fromMiddle) * 180) / Math.PI / ROW_DEGREES;
+      go(Math.round(el.scrollTop / itemHeight + turn));
       clickHandled.current = true;
       return;
     }
@@ -337,45 +372,64 @@ export function Wheel({
           key={i}
           role="presentation"
           data-index={i}
-          className="flex snap-center items-center justify-center text-[22px] leading-none text-[var(--cdp-secondary)] tabular-nums transition-colors data-active:text-[var(--cdp-label)]"
-          style={{ height: itemHeight }}
+          className={cn(
+            "flex snap-center items-center text-[23px] leading-none text-[var(--cdp-secondary)] tabular-nums transition-colors data-active:text-[var(--cdp-label)]",
+            align === "start"
+              ? "justify-start"
+              : align === "end"
+                ? "justify-end"
+                : "justify-center",
+          )}
+          style={{
+            height: itemHeight,
+            paddingInline:
+              align === "end" ? `0 ${inset}px` : align === "start" ? `${inset}px 0` : undefined,
+          }}
         >
-          {options.at(i % len)?.label}
+          <span>{options.at(i % len)?.label}</span>
         </div>
       )),
-    [options, len, copies, itemHeight],
+    [options, len, copies, itemHeight, align, inset],
   );
 
   const current = options.at(selected);
 
   return (
-    <div
-      ref={scroller}
-      role="spinbutton"
-      tabIndex={0}
-      aria-label={ariaLabel}
-      aria-valuenow={current?.value}
-      aria-valuetext={current?.label}
-      aria-valuemin={options.at(0)?.value}
-      aria-valuemax={options.at(-1)?.value}
-      data-slot="wheel"
-      onScroll={onScroll}
-      onScrollEnd={onScrollEnd}
-      onWheel={() => (arriving.current = null)}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      onKeyDown={onKeyDown}
-      className={cn(
-        "cdp-wheel relative snap-y snap-mandatory overflow-y-scroll overscroll-contain rounded-lg outline-none select-none focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]",
-        className,
-      )}
-      style={{ height: visibleRows * itemHeight, scrollbarWidth: "none", touchAction: "pan-y" }}
-    >
-      <div aria-hidden style={{ paddingBlock: pad }} onClick={onRowClick}>
-        {rows}
+    // The focus ring hugs the centre row, outside the scroller and in the
+    // middle of the group's fade, so the fade never dims it.
+    <div className={cn("relative", className)}>
+      <div
+        ref={scroller}
+        role="spinbutton"
+        tabIndex={0}
+        aria-label={ariaLabel}
+        aria-valuenow={current?.value}
+        aria-valuetext={current?.label}
+        aria-valuemin={options.at(0)?.value}
+        aria-valuemax={options.at(-1)?.value}
+        data-slot="wheel"
+        onScroll={onScroll}
+        onScrollEnd={onScrollEnd}
+        onWheel={() => (arriving.current = null)}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onKeyDown={onKeyDown}
+        className={cn(
+          "cdp-wheel peer relative w-full snap-y snap-mandatory overflow-y-scroll overscroll-contain outline-none select-none",
+        )}
+        style={{ height: visibleRows * itemHeight, scrollbarWidth: "none", touchAction: "pan-y" }}
+      >
+        <div aria-hidden style={{ paddingBlock: pad }} onClick={onRowClick}>
+          {rows}
+        </div>
       </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 rounded-full opacity-0 ring-2 ring-[var(--cdp-tint)] peer-focus-visible:opacity-100"
+        style={{ height: itemHeight + BAND_EXTRA }}
+      />
     </div>
   );
 }
@@ -392,10 +446,10 @@ export function WheelHighlight({
     <div
       aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 rounded-lg bg-[var(--cdp-fill)]",
+        "pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 rounded-full bg-[var(--cdp-wheel-band)]",
         className,
       )}
-      style={{ height: itemHeight }}
+      style={{ height: itemHeight + BAND_EXTRA }}
     />
   );
 }

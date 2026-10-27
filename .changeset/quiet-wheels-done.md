@@ -2,4 +2,6 @@
 "cupertino-datetime-picker": patch
 ---
 
-The calendar keeps its height while the month/year wheels are open, so scrolling to a month that needs six rows no longer grows the panel, and a Done button closes the wheels. The typed time field shows the hour with two digits on both clocks, 06:30 like iOS, so the colon and minutes stay put between 9 and 10. Renders are cheaper: date formatters are reused instead of rebuilt, and wheel rows are no longer re-rendered when the value changes.
+Closer to the iOS 26 picker. Wheels sit on a drum (rows bunch toward the edges), show seven rows, and share a capsule highlight band; hours are right-aligned and minutes and AM/PM left-aligned, with iOS's column gaps, and turning the hour wheel past 11 ↔ 12 flips AM/PM. Pills are capsules 36px tall with a 4px gap. The calendar shows SUN–SAT weekday names, keeps its height while the month/year wheels are open, tints the title while they are, and has a Done button to close them; hidden layers no longer take focus. The typed time field shows the hour with two digits. Renders are cheaper: date formatters are reused and wheel rows are not re-rendered when the value changes.
+
+`Wheel` gains `align` and `inset`, and its `onChange` receives how many rows the wheel turned as a second argument.
