@@ -68,6 +68,56 @@ export function isDayDisabled(date: Date, min?: Date, max?: Date): boolean {
   return false;
 }
 
+/** `date` moved inside [min, max], by whole days; its time of day is kept. */
+export function clampDay(date: Date, min?: Date, max?: Date): Date {
+  if (min && startOfDay(date) < startOfDay(min))
+    return withDay(date, min.getFullYear(), min.getMonth(), min.getDate());
+  if (max && startOfDay(date) > startOfDay(max))
+    return withDay(date, max.getFullYear(), max.getMonth(), max.getDate());
+  return date;
+}
+
+/** `ym` moved inside the months of [min, max]. */
+export function clampMonth(ym: YearMonth, min?: Date, max?: Date): YearMonth {
+  if (min && monthDiff(yearMonthOf(min), ym) < 0) return yearMonthOf(min);
+  if (max && monthDiff(ym, yearMonthOf(max)) < 0) return yearMonthOf(max);
+  return ym;
+}
+
+/**
+ * The day in month `view` that Tab lands on: the focused day if it is shown,
+ * else the selected day, else today, else the first day that can be picked.
+ */
+export function tabStop(
+  view: YearMonth,
+  candidates: (Date | null | undefined)[],
+  min?: Date,
+  max?: Date,
+): Date {
+  const shown = (d: Date | null | undefined): d is Date =>
+    !!d && monthDiff(view, yearMonthOf(d)) === 0 && !isDayDisabled(d, min, max);
+  const found = candidates.find(shown);
+  if (found) return found;
+  return clampDay(new Date(view.year, view.month, 1), min, max);
+}
+
+/**
+ * The years a year wheel offers: `span` either side of `thisYear`, widened to
+ * reach `year`, or exactly min to max when both are set.
+ */
+export function yearRange(
+  thisYear: number,
+  year: number,
+  span: number,
+  min?: Date,
+  max?: Date,
+): [number, number] {
+  if (min && max) return [min.getFullYear(), max.getFullYear()];
+  const from = min ? min.getFullYear() : Math.min(thisYear - span, year);
+  const to = max ? max.getFullYear() : Math.max(thisYear + span, year);
+  return [from, to];
+}
+
 export type DayCell = { date: Date; inMonth: boolean };
 
 /**

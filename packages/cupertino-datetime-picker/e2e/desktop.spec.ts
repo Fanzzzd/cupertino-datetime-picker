@@ -529,3 +529,67 @@ test("on a zoomed page the centre row still sits in the band", async ({ page }) 
     expect(Math.abs(off)).toBeLessThan(1);
   }
 });
+
+test("after changing month, Tab still reaches a day", async ({ page }) => {
+  await open(page);
+  await dateTrigger(page).click();
+  const popup = datePopup(page);
+  await popup.getByRole("button", { name: "Next month" }).click();
+  await expect(popup.getByRole("grid")).toHaveAccessibleName("October 2026");
+  await page.keyboard.press("Tab");
+  await expect(page.locator(":focus")).toHaveAttribute("aria-label", /October \d+, 2026/);
+});
+
+const ms = (y: number, m: number, d: number) => new Date(y, m, d).getTime();
+
+test("the month and year wheels stay within min and max", async ({ page }) => {
+  await open(page, `&min=${ms(2026, 8, 1)}&max=${ms(2026, 10, 30)}`);
+  await dateTrigger(page).click();
+  const popup = datePopup(page);
+  await popup.getByRole("button", { name: /September 2026/ }).click();
+  const month = popup.getByRole("spinbutton", { name: "Month" });
+  await month.focus();
+  // Four months on is January 2027, past max: the wheel stops at November.
+  for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowDown");
+  await expect(month).toHaveAttribute("aria-valuetext", "November");
+  // And back before min, it stops at September.
+  for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowUp");
+  await expect(month).toHaveAttribute("aria-valuetext", "September");
+  const year = popup.getByRole("spinbutton", { name: "Year" });
+  await year.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(year).toHaveAttribute("aria-valuenow", "2026");
+  await popup.getByRole("button", { name: "Done" }).click();
+  await expect(popup.getByRole("grid")).toHaveAccessibleName("September 2026");
+});
+
+test("keys that would leave min/max stop at the limit", async ({ page }) => {
+  await open(page, `&max=${ms(2026, 8, 20)}`);
+  await dateTrigger(page).click();
+  const popup = datePopup(page);
+  await popup.getByRole("gridcell", { name: /September 5, 2026/ }).focus();
+  await page.keyboard.press("PageDown");
+  await expect(page.locator(":focus")).toHaveAttribute("aria-label", /September 20, 2026/);
+});
+
+test("a day picked in an empty picker keeps the time the clock shows", async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 8, 5, 14, 7));
+  await open(page);
+  const empty = page.locator('[data-slot="date-time-picker"]').nth(5);
+  await empty.locator('[data-slot="date-trigger"]').click();
+  await datePopup(page)
+    .getByRole("gridcell", { name: /September 10, 2026/ })
+    .click();
+  await expect(empty.locator('[data-slot="time-trigger"]')).toHaveText("2:07 PM");
+});
+
+test("a year far from today is still on the year wheel", async ({ page }) => {
+  await page.goto(`/?at=${new Date(1900, 2, 1).getTime()}`);
+  await dateTrigger(page).click();
+  const popup = datePopup(page);
+  await popup.getByRole("button", { name: /March 1900/ }).click();
+  await expect(popup.getByRole("spinbutton", { name: "Year" })).toHaveAttribute(
+    "aria-valuenow",
+    "1900",
+  );
+});

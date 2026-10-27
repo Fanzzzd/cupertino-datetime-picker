@@ -3,6 +3,7 @@
 import { Popover } from "@base-ui/react/popover";
 import * as React from "react";
 
+import { withTime } from "./calendar";
 import { CalendarPanel } from "./calendar-panel";
 import { useBrowserLocale, useControlled } from "./hooks";
 import { formatClock, formatDay, hourCycleFor, type HourCycle } from "./time";
@@ -109,8 +110,11 @@ export const DateTimePicker = React.memo(function DateTimePicker({
     [timeLabel, locale, hourCycle],
   );
 
+  // A day picked into an empty picker keeps the time the clock shows.
+  const pickDay = (day: Date) =>
+    setValue(value ? day : withTime(day, draft.getHours(), draft.getMinutes()));
   const calendar = (
-    <CalendarPanel value={value} onChange={setValue} locale={locale} min={min} max={max} />
+    <CalendarPanel value={value} onChange={pickDay} locale={locale} min={min} max={max} />
   );
   const time = (
     <TimePanel

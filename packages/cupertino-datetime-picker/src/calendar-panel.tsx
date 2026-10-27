@@ -5,15 +5,19 @@ import * as React from "react";
 import {
   addDays,
   addMonths,
+  clampDay,
+  clampMonth,
   isDayDisabled,
   isSameDay,
   monthDiff,
   monthGrid,
   shiftMonth,
   startOfDay,
+  tabStop,
   weekStartFor,
   withDay,
   yearMonthOf,
+  yearRange,
   type YearMonth,
 } from "./calendar";
 import { useBrowserLocale } from "./hooks";
@@ -118,9 +122,11 @@ export function CalendarPanel({
     setPicking(!picking);
   };
 
+  // The view never leaves the months of [min, max]; a wheel turned past
+  // them comes back.
   const show = (next: YearMonth, direction: -1 | 0 | 1) => {
     setDir(direction);
-    setView(next);
+    setView(clampMonth(next, min, max));
   };
   const shift = (by: number) => show(shiftMonth(view, by), by > 0 ? 1 : -1);
 
@@ -136,8 +142,9 @@ export function CalendarPanel({
     onChange(withDay(value ?? today, date.getFullYear(), date.getMonth(), date.getDate()));
   };
 
-  const moveFocus = (next: Date) => {
-    if (isDayDisabled(next, min, max)) return;
+  // A key that would leave [min, max] stops at the limit.
+  const moveFocus = (to: Date) => {
+    const next = clampDay(to, min, max);
     wantFocus.current = true;
     setFocusDate(next);
     const diff = monthDiff(view, yearMonthOf(next));
@@ -185,20 +192,22 @@ export function CalendarPanel({
   };
 
   const rows = monthGrid(view.year, view.month, weekStart);
+  // One day in the shown month takes Tab, whichever month that is.
+  const stop = tabStop(view, [focusDate, value, today], min, max);
   const viewDate = new Date(view.year, view.month, 1);
   // Stable between renders, so the wheels keep their rows.
   const months = React.useMemo(
     () => monthNames(locale).map((label, month) => ({ value: month, label })),
     [locale],
   );
-  const thisYear = today.getFullYear();
+  const [firstYear, lastYear] = yearRange(today.getFullYear(), view.year, YEAR_SPAN, min, max);
   const years = React.useMemo(
     () =>
-      Array.from({ length: YEAR_SPAN * 2 + 1 }, (_, i) => {
-        const year = thisYear - YEAR_SPAN + i;
+      Array.from({ length: lastYear - firstYear + 1 }, (_, i) => {
+        const year = firstYear + i;
         return { value: year, label: String(year) };
       }),
-    [thisYear],
+    [firstYear, lastYear],
   );
 
   return (
@@ -318,7 +327,7 @@ export function CalendarPanel({
                   data-date={startOfDay(date).getTime()}
                   data-today={isToday || undefined}
                   data-selected={selected || undefined}
-                  tabIndex={isSameDay(date, focusDate) ? 0 : -1}
+                  tabIndex={isSameDay(date, stop) ? 0 : -1}
                   disabled={disabled}
                   onClick={() => pick(date)}
                   onFocus={() => {

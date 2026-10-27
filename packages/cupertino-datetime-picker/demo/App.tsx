@@ -37,6 +37,11 @@ export function App() {
   const [value, setValue] = React.useState<Date | null>(
     () => new Date(Number(params.get("at")) || new Date(2026, 8, 5, 18, 30).getTime()),
   );
+  // `?min=` and `?max=` (epoch ms) bound the first picker, for tests.
+  const [bounds] = React.useState(() => ({
+    min: params.has("min") ? new Date(Number(params.get("min"))) : undefined,
+    max: params.has("max") ? new Date(Number(params.get("max"))) : undefined,
+  }));
   React.useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
@@ -97,7 +102,13 @@ export function App() {
 
       <Group title="Compact">
         <Row label="Starts">
-          <DateTimePicker value={value} onChange={setValue} locale={locale} />
+          <DateTimePicker
+            value={value}
+            onChange={setValue}
+            locale={locale}
+            min={bounds.min}
+            max={bounds.max}
+          />
         </Row>
         <Row label="Date">
           <DateTimePicker mode="date" value={value} onChange={setValue} locale={locale} />
