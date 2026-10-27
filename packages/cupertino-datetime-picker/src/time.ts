@@ -12,7 +12,9 @@ function formatter(locale: string, options: Intl.DateTimeFormatOptions): Intl.Da
   const key = `${locale}|${JSON.stringify(options)}`;
   let f = formatters.get(key);
   if (!f) {
-    f = new Intl.DateTimeFormat(locale, options);
+    // The grid is Gregorian, so every name and number is too, even where the
+    // locale's own calendar is another (fa-IR, th-TH).
+    f = new Intl.DateTimeFormat(locale, { calendar: "gregory", ...options });
     formatters.set(key, f);
   }
   return f;

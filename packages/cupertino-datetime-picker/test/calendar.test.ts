@@ -92,4 +92,8 @@ test("yearRange reaches the value's year, or spans min to max", () => {
   expect(yearRange(2026, 2026, 100, new Date(2020, 0, 1), new Date(2030, 0, 1))).toEqual([
     2020, 2030,
   ]);
+  // A min far ahead still leaves years to pick.
+  const [from, to] = yearRange(2026, 2026, 100, new Date(2200, 0, 1));
+  expect(from).toBe(2200);
+  expect(to).toBeGreaterThanOrEqual(2200);
 });

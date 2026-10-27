@@ -149,10 +149,14 @@ export const DateTimePicker = React.memo(function DateTimePicker({
       <div
         className={cn(
           "cdp inline-flex flex-col items-stretch rounded-2xl bg-[var(--cdp-bg)]",
+          disabled && "opacity-50",
           className,
         )}
         data-slot="date-time-picker"
         data-display="inline"
+        // Disabled, the panels take no pointer, key or focus.
+        inert={disabled}
+        aria-disabled={disabled || undefined}
       >
         {showDate && calendar}
         {/* As on iOS: the time sits on a "Time" row under the calendar and opens the wheels. */}

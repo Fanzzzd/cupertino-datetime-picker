@@ -84,7 +84,14 @@ export function TimePanel({
   const hourShown = twelve ? hour12 : hours24;
   const periods = dayPeriodLabels(locale);
 
-  const [typing, setTyping] = React.useState<Typing>(null);
+  // What is being typed belongs to the time it was typed over: a time set
+  // from outside drops it, so the field shows the new time.
+  const [typed, setTyped] = React.useState<{ typing: Typing; at: number }>({
+    typing: null,
+    at: value.getTime(),
+  });
+  const typing = typed.at === value.getTime() ? typed.typing : null;
+  const setTyping = (next: Typing, at = value.getTime()) => setTyped({ typing: next, at });
   const hourRef = React.useRef<HTMLInputElement>(null);
   const minuteRef = React.useRef<HTMLInputElement>(null);
   const field = { hours: hours24, minutes, typing };
@@ -116,8 +123,12 @@ export function TimePanel({
   // The field model decided; write the time, keep what is being typed, and
   // move focus if a segment completed.
   const apply = (step: FieldStep, from: Segment) => {
-    setTyping(step.typing);
-    emit(withTime(value, step.hours, step.minutes));
+    // A step that only moves focus or the buffer leaves the time alone, to
+    // the second and across a repeated DST hour.
+    const changed = step.hours !== hours24 || step.minutes !== minutes;
+    const next = changed ? withTime(value, step.hours, step.minutes) : value;
+    setTyping(step.typing, next.getTime());
+    emit(next);
     if (step.focus !== from) focusSegment(step.focus);
   };
 

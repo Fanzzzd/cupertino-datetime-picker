@@ -593,3 +593,30 @@ test("a year far from today is still on the year wheel", async ({ page }) => {
     "1900",
   );
 });
+
+test("a new locale relabels an open wheel where it stands", async ({ page }) => {
+  await open(page);
+  const inline = page.locator('[data-display="inline"]');
+  await inline.getByRole("button", { name: /September 2026/ }).click();
+  const month = inline.getByRole("spinbutton", { name: "Month" });
+  await month.focus();
+  for (let i = 0; i < 8; i++) await page.keyboard.press("ArrowDown");
+  await expect(month).toHaveAttribute("aria-valuetext", "May");
+  await page.getByRole("combobox").selectOption("fr-FR");
+  await expect(month).toHaveAttribute("aria-valuetext", "mai");
+  await expect(month.locator("[data-active] span")).toHaveText("mai");
+});
+
+test("right to left, the AM/PM thumb sits under the chosen period", async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (document.documentElement.dir = "rtl"));
+  await timeTrigger(page).click();
+  const control = timePopup(page).getByRole("radiogroup");
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const { thumb, chosen } = await control.evaluate((el) => {
+    const t = (el.firstElementChild as HTMLElement).getBoundingClientRect();
+    const c = el.querySelector("input:checked")!.closest("label")!.getBoundingClientRect();
+    return { thumb: t.left + t.width / 2, chosen: c.left + c.width / 2 };
+  });
+  expect(Math.abs(thumb - chosen)).toBeLessThan(4);
+});

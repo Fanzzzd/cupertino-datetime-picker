@@ -94,7 +94,9 @@ export function CalendarPanel({
   const title = React.useRef<HTMLButtonElement>(null);
   const today = todayProp ?? startOfDay(new Date());
   const weekStart = weekStartFor(locale);
-  const [view, setView] = React.useState<YearMonth>(() => yearMonthOf(value ?? today));
+  const [view, setView] = React.useState<YearMonth>(() =>
+    clampMonth(yearMonthOf(value ?? today), min, max),
+  );
   const [dir, setDir] = React.useState<-1 | 0 | 1>(0);
   const [picking, setPicking] = React.useState(false);
   // While the wheels are up the body keeps the height the day grid had, so

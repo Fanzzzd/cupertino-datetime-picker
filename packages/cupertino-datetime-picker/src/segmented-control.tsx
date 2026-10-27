@@ -41,10 +41,11 @@ export function SegmentedControl<T extends string | number | boolean>({
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-[3px] left-[3px] rounded-full bg-[var(--cdp-thumb)] shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)] transition-transform duration-200 ease-[cubic-bezier(0.2,0,0,1)]"
+        className="pointer-events-none absolute inset-y-[3px] start-[3px] rounded-full bg-[var(--cdp-thumb)] shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)] transition-transform duration-200 ease-[cubic-bezier(0.2,0,0,1)]"
         style={{
           width: `calc((100% - 6px) / ${options.length})`,
-          transform: `translateX(${index * 100}%)`,
+          // Right to left, the first segment is on the right.
+          transform: `translateX(calc(${index * 100}% * var(--cdp-dir, 1)))`,
         }}
       />
       {options.map((option) => {

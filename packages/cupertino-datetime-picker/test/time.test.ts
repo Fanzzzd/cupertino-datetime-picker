@@ -3,6 +3,8 @@ import { expect, test } from "vitest";
 import {
   dayPeriodLabels,
   formatClock,
+  formatDay,
+  formatMonthYear,
   hourCycleFor,
   monthNames,
   to12,
@@ -33,4 +35,12 @@ test("labels come from Intl", () => {
   expect(weekdayNames("de-DE", 1)[0]).toBe("M");
   expect(formatClock(new Date(2026, 8, 5, 18, 30), "en-US", "h12")).toBe("6:30 PM");
   expect(formatClock(new Date(2026, 8, 5, 18, 30), "en-US", "h23")).toBe("18:30");
+});
+
+test("dates are Gregorian in every locale, like the grid", () => {
+  // fa-IR defaults to the Persian calendar (1405); the grid is Gregorian.
+  const at = new Date(2026, 8, 5);
+  expect(formatMonthYear(at, "fa-IR")).toContain("۲۰۲۶");
+  expect(formatDay(at, "fa-IR")).toContain("۲۰۲۶");
+  expect(monthNames("fa-IR")[8]).not.toBe(monthNames("fa-IR")[5]);
 });

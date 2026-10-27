@@ -19,3 +19,11 @@ test("renders on a server, where there is no navigator", () => {
     if (real) Object.defineProperty(globalThis, "navigator", real);
   }
 });
+
+test("a disabled inline picker takes no input", () => {
+  const at = new Date(2026, 8, 5, 18, 30);
+  const html = renderToString(
+    createElement(DateTimePicker, { display: "inline", defaultValue: at, disabled: true }),
+  );
+  expect(html).toMatch(/data-display="inline"[^>]*inert|inert[^>]*data-display="inline"/);
+});

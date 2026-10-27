@@ -119,7 +119,7 @@ export function Wheel({
 
   // Depth: rows sit on a drum. Each row turns away from the centre and is
   // drawn where the turned drum puts it, so rows bunch up toward the edges.
-  const paint = () => {
+  const paint = (relabel = false) => {
     const rows = pool.current?.children;
     if (!rows) return;
     const centre = motion.pos / itemHeight;
@@ -129,7 +129,7 @@ export function Wheel({
       const row = rows[mod(i, poolSize)] as HTMLElement;
       const label = row.firstElementChild as HTMLElement;
       const real = loop || (i >= 0 && i < len);
-      if (row.dataset.index !== String(i)) {
+      if (relabel || row.dataset.index !== String(i)) {
         row.dataset.index = String(i);
         label.textContent = real ? (optionAt(i)?.label ?? "") : "";
       }
@@ -353,7 +353,9 @@ export function Wheel({
   React.useLayoutEffect(() => {
     if (paintedRows.current === rows) return;
     paintedRows.current = rows;
-    paint();
+    // React wrote the new labels where the pool first stood; label them all
+    // again where the wheel stands now.
+    paint(true);
   });
 
   const current = options.at(selected);

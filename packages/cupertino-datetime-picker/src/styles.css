@@ -49,6 +49,11 @@
   color: var(--cdp-label);
 }
 
+/* Which way the start of a row is, for transforms. */
+.cdp:dir(rtl) {
+  --cdp-dir: -1;
+}
+
 .cdp-wheel-mask {
   mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
 }
