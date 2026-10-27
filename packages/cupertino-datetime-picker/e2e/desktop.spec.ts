@@ -747,3 +747,41 @@ test("page keys on a bounded month wheel stop at the limit they head for", async
   await page.keyboard.press("End");
   await expect(month).toHaveAttribute("aria-valuetext", "October");
 });
+
+test("Escape keeps half-typed digits, as leaving the field does", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  await timePopup(page).getByRole("textbox", { name: "Hour" }).click();
+  await page.keyboard.type("1");
+  await page.keyboard.press("Escape");
+  await expect(value(page)).toHaveText("Sep 5, 2026 1:30 PM");
+});
+
+test("a wheel turned while digits are held keeps them", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  await timePopup(page).getByRole("textbox", { name: "Hour" }).click();
+  await page.keyboard.type("1");
+  const minute = wheel(page, "Minute");
+  const box = (await minute.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 32);
+  await expect(value(page)).toHaveText("Sep 5, 2026 1:31 PM");
+});
+
+test("a parent that ignores a change gets the wheel back, with one report", async ({ page }) => {
+  await open(page, "&frozen=1");
+  await timeTrigger(page).click();
+  const hour = wheel(page, "Hour");
+  await hour.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(hour.locator("[data-active] span")).toHaveText("6");
+  await expect
+    .poll(async () => Number.isInteger(Number(await hour.getAttribute("data-position"))))
+    .toBe(true);
+  await page.keyboard.press("ArrowDown");
+  await expect(hour.locator("[data-active] span")).toHaveText("6");
+  await expect(value(page)).toHaveText("Sep 5, 2026 6:30 PM");
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => (window as { ignored?: number }).ignored)).toBe(2);
+});

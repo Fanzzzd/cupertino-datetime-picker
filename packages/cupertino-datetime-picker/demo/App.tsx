@@ -9,6 +9,11 @@ const LOCALES = ["en-US", "en-GB", "zh-CN", "ja-JP", "de-DE", "fr-FR"];
 // every render of the page.
 const NINE_AM = new Date(2026, 8, 5, 9, 0);
 const QUARTER_PAST_NINE_PM = new Date(2026, 8, 5, 21, 15);
+// Counts the changes it ignores, so a test can see each one.
+const ignore = () => {
+  const w = window as { ignored?: number };
+  w.ignored = (w.ignored ?? 0) + 1;
+};
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -37,7 +42,9 @@ export function App() {
   const [value, setValue] = React.useState<Date | null>(
     () => new Date(Number(params.get("at")) || new Date(2026, 8, 5, 18, 30).getTime()),
   );
-  // `?min=` and `?max=` (epoch ms) bound the first picker, for tests.
+  // `?min=` and `?max=` (epoch ms) bound the first picker, and `?frozen=1`
+  // makes its parent ignore changes, for tests.
+  const frozen = params.get("frozen") === "1";
   const [bounds] = React.useState(() => ({
     min: params.has("min") ? new Date(Number(params.get("min"))) : undefined,
     max: params.has("max") ? new Date(Number(params.get("max"))) : undefined,
@@ -104,7 +111,7 @@ export function App() {
         <Row label="Starts">
           <DateTimePicker
             value={value}
-            onChange={setValue}
+            onChange={frozen ? ignore : setValue}
             locale={locale}
             min={bounds.min}
             max={bounds.max}

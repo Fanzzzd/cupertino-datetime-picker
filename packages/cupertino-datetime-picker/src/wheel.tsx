@@ -33,6 +33,8 @@ export type WheelProps = {
 export const BAND_EXTRA = 2;
 
 const TYPEAHEAD_MS = 700;
+/** How long after a report the wheel waits for the value to come back (ms). */
+const AGREE_MS = 120;
 /** A press that travels less than this (px) is a tap. */
 const TAP_SLOP = 4;
 
@@ -100,11 +102,18 @@ export function Wheel({
     null,
   );
   const typeahead = React.useRef({ buffer: "", timer: 0 });
+  // The row a jump already reported, so landing on it reports nothing more.
+  const reported = React.useRef<number | null>(null);
+  const agreeTimer = React.useRef(0);
   // Frames and listeners call back after this render; give them the latest
   // handlers rather than the ones they closed over.
   const onChangeRef = React.useRef(onChange);
   const valueRef = React.useRef(value);
-  const latest = React.useRef({ tick: (_now: number) => {}, wheel: (_e: WheelEvent) => {} });
+  const latest = React.useRef({
+    tick: (_now: number) => {},
+    wheel: (_e: WheelEvent) => {},
+    agree: () => {},
+  });
 
   const optionAt = (row: number) => options.at(mod(row, len));
 
@@ -146,7 +155,12 @@ export function Wheel({
     const row = motion.row;
     const from = resting.current;
     resting.current = row;
-    report(row, from);
+    if (row !== reported.current) report(row, from);
+    reported.current = null;
+    // A parent that kept its value (it refused the change, or clamped it
+    // back) gets the wheel back on that value.
+    window.clearTimeout(agreeTimer.current);
+    agreeTimer.current = window.setTimeout(() => latest.current.agree(), AGREE_MS);
   };
 
   const tick = (now: number) => {
@@ -173,10 +187,26 @@ export function Wheel({
     run();
   };
 
+  const follow = (v: number) => {
+    if (motion.dragging) return;
+    if (optionAt(resting.current)?.value === v) return;
+    const index = Math.max(
+      0,
+      options.findIndex((o) => o.value === v),
+    );
+    const row = loop ? nearestRow(index, resting.current, len) : index;
+    resting.current = row;
+    motion.goTo(row, performance.now());
+    run();
+  };
   React.useLayoutEffect(() => {
     onChangeRef.current = onChange;
     valueRef.current = value;
-    latest.current = { tick, wheel: onWheel };
+    latest.current = {
+      tick,
+      wheel: onWheel,
+      agree: () => !motion.active && follow(valueRef.current),
+    };
     motion.configure(bounds);
   });
 
@@ -195,6 +225,7 @@ export function Wheel({
     const from = resting.current;
     resting.current = target;
     report(target, turn ? from : target);
+    reported.current = target;
     motion.goTo(target, performance.now());
     run();
   };
@@ -203,20 +234,14 @@ export function Wheel({
   // Only a wheel held in a person's hand finishes first; a gliding one,
   // flung or not, turns to the new value, so a time typed into the field
   // while a wheel coasts is the one that stays.
-  React.useEffect(() => {
-    if (motion.dragging) return;
-    if (optionAt(resting.current)?.value === value) return;
-    const row = loop ? nearestRow(selected, resting.current, len) : selected;
-    resting.current = row;
-    motion.goTo(row, performance.now());
-    run();
-  });
+  React.useEffect(() => follow(value));
 
   // Nothing the wheel scheduled may run once it is gone.
   React.useEffect(
     () => () => {
       cancelAnimationFrame(frame.current);
       window.clearTimeout(typeahead.current.timer);
+      window.clearTimeout(agreeTimer.current);
     },
     [],
   );

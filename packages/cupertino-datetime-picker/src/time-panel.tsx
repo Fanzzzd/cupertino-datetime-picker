@@ -112,8 +112,16 @@ export function TimePanel({
     if (twelve && to12(turned).hour === shown) emit(withTime(value, turned, minutes));
     else setHour(shown);
   };
-  const setMinute = (m: number) => emit(withTime(value, hours24, m));
-  const setPm = (next: boolean) => emit(withTime(value, to24(hour12, next), minutes));
+  // A wheel or the AM/PM control turned while digits are held writes the
+  // held time with its own part changed.
+  const setMinute = (m: number) => {
+    setHeld(null);
+    emit(withTime(value, field.hours, m));
+  };
+  const setPm = (next: boolean) => {
+    setHeld(null);
+    emit(withTime(value, to24(to12(field.hours).hour, next), field.minutes));
+  };
 
   const focusSegment = (segment: Segment) => {
     const el = segment === "hour" ? hourRef.current : minuteRef.current;
@@ -157,6 +165,10 @@ export function TimePanel({
     if (step) {
       e.preventDefault();
       apply(step, segment);
+    } else if (e.key === "Escape") {
+      // Escape closes the popover; what is typed is kept, as on leaving the
+      // field. (Chromium blurs it while React commits the close, too late.)
+      commit();
     } else if (e.key === "Enter") {
       // Commit what is typed; focus stays in the field.
       commit();
