@@ -164,8 +164,11 @@ export function TimePanel({
     return pad2(segment === "hour" ? hourShown : minutes);
   };
 
+  // Each segment is wider than its two digits plus the (hidden) caret, so
+  // the input never scrolls its text by a pixel on focus or while typing.
   const segmentClass =
-    "box-content h-10 rounded-md bg-transparent px-1 text-center text-[32px] leading-none font-light tabular-nums text-[var(--cdp-label)] caret-transparent outline-none selection:bg-transparent focus:bg-[var(--cdp-tint-fill)] focus:text-[var(--cdp-tint)]";
+    "h-7 rounded-[6px] bg-transparent text-center text-[22px] leading-none tabular-nums text-[var(--cdp-label)] caret-transparent outline-none transition-colors duration-100 selection:bg-transparent focus:bg-[var(--cdp-tint-fill)] focus:text-[var(--cdp-tint)]";
+  const segmentWidth = "calc(2ch + 14px)";
 
   // Stable between renders, so the wheels keep their rows.
   const hourOptions = React.useMemo(
@@ -201,7 +204,7 @@ export function TimePanel({
         <div
           role="group"
           aria-label={labels.time}
-          className="flex h-11 items-center rounded-lg bg-[var(--cdp-fill)] px-1.5"
+          className="flex h-9 items-center rounded-lg border border-[var(--cdp-border)] bg-[var(--cdp-bg)] px-1 shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--cdp-tint)] focus-within:ring-[3px] focus-within:ring-[var(--cdp-tint-ring)]"
           data-slot="time-field"
         >
           <input
@@ -215,14 +218,12 @@ export function TimePanel({
             onKeyDown={onSegmentKeyDown("hour")}
             onFocus={(e) => e.currentTarget.select()}
             onBlur={() => setTyping(null)}
-            // A two-digit slot with a half-typed hour against the colon, so
-            // the colon and the minutes never move.
-            className={cn(segmentClass, "text-right")}
-            style={{ width: "2ch" }}
+            className={segmentClass}
+            style={{ width: segmentWidth }}
             data-segment="hour"
           />
           <span
-            className="-mx-0.5 text-[32px] leading-none font-light text-[var(--cdp-label)]"
+            className="-translate-y-px text-[22px] leading-none text-[var(--cdp-secondary)]"
             aria-hidden
           >
             :
@@ -239,7 +240,7 @@ export function TimePanel({
             onFocus={(e) => e.currentTarget.select()}
             onBlur={() => setTyping(null)}
             className={segmentClass}
-            style={{ width: "2ch" }}
+            style={{ width: segmentWidth }}
             data-segment="minute"
           />
         </div>

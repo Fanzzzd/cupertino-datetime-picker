@@ -215,6 +215,39 @@ test("a mouse drag flings a wheel past where it was released", async ({ page }) 
   await expect(year).toHaveAttribute("aria-valuenow", String(rested - 2));
 });
 
+test("the segmented field does not scroll or move when focus and digits change", async ({
+  page,
+}) => {
+  await open(page);
+  await timeTrigger(page).click();
+  const field = timePopup(page).getByRole("group", { name: "Time", exact: true });
+  const hour = field.getByRole("textbox", { name: "Hour" });
+  const minute = field.getByRole("textbox", { name: "Minute" });
+  const geometry = () =>
+    field.evaluate((el) => {
+      const b = el.getBoundingClientRect();
+      const r = [...el.children].map((child) => {
+        const rect = child.getBoundingClientRect();
+        return { x: rect.x - b.x, y: rect.y - b.y, width: rect.width, height: rect.height };
+      });
+      return { width: b.width, height: b.height, children: r };
+    });
+  // After the popover's spring has settled.
+  await hour.click();
+  await expect.poll(() => timePopup(page).evaluate((el) => el.getAnimations().length)).toBe(0);
+  const before = await geometry();
+  for (const digits of ["09", "10", "12"]) {
+    await hour.click();
+    await page.keyboard.type(digits);
+    await expect(hour).toHaveValue(digits);
+    await expect(minute).toBeFocused();
+    expect(await geometry()).toEqual(before);
+    for (const input of [hour, minute]) {
+      await expect.poll(() => input.evaluate((el) => el.scrollLeft)).toBe(0);
+    }
+  }
+});
+
 test("the hour wheel carries into AM/PM between 11 and 12, as on iOS", async ({ page }) => {
   await open(page);
   await timeTrigger(page).click();
