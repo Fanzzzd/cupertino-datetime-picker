@@ -182,6 +182,8 @@ export function Wheel({
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     if (motion.dragging) return;
+    // A new gesture: whatever a jump reported is behind it.
+    reported.current = null;
     const unit = e.deltaMode === 1 ? itemHeight : e.deltaMode === 2 ? visibleRows * itemHeight : 1;
     motion.wheel(e.timeStamp, e.deltaY * unit);
     run();
@@ -190,6 +192,7 @@ export function Wheel({
   const follow = (v: number) => {
     if (motion.dragging) return;
     if (optionAt(resting.current)?.value === v) return;
+    reported.current = null;
     const index = Math.max(
       0,
       options.findIndex((o) => o.value === v),
@@ -263,6 +266,7 @@ export function Wheel({
     e.currentTarget.setPointerCapture(e.pointerId);
     const scale = e.currentTarget.getBoundingClientRect().height / (visibleRows * itemHeight) || 1;
     press.current = { y: e.clientY, moved: false, stopped: motion.active, scale };
+    reported.current = null;
     motion.grab(e.timeStamp, e.clientY / scale);
     run();
   };

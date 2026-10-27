@@ -103,14 +103,14 @@ export function TimePanel({
   const emit = (next: Date) => {
     if (next.getTime() !== value.getTime()) onChange(next);
   };
-  const setHour = (shown: number) =>
-    emit(withTime(value, twelve ? to24(shown, pm) : shown, minutes));
   // Turning the hour wheel n rows is n hours on the clock, so passing 11 ↔ 12
-  // carries into AM/PM, as on iOS. A jump (no rows) keeps the period.
+  // carries into AM/PM, as on iOS. A jump (no rows) keeps the period. Held
+  // minute digits are kept.
   const turnHour = (shown: number, rows: number) => {
     const turned = mod(hours24 + rows, 24);
-    if (twelve && to12(turned).hour === shown) emit(withTime(value, turned, minutes));
-    else setHour(shown);
+    const hours = twelve && to12(turned).hour === shown ? turned : twelve ? to24(shown, pm) : shown;
+    setHeld(null);
+    emit(withTime(value, hours, field.minutes));
   };
   // A wheel or the AM/PM control turned while digits are held writes the
   // held time with its own part changed.

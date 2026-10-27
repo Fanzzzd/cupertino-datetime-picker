@@ -38,19 +38,21 @@ A group of wheels shares one `WheelHighlight`, the translucent bar behind the
 centre row, positioned by a `relative` container. `cdp-wheel-mask` fades the
 top and bottom rows.
 
-| Prop          | Type                                 | Default |                                                      |
-| ------------- | ------------------------------------ | ------- | ---------------------------------------------------- |
-| `options`     | `{ value: number; label: string }[]` |         | The rows, top to bottom.                             |
-| `value`       | `number`                             |         | The centred option's value.                          |
-| `onChange`    | `(value: number) => void`            |         | Called when the wheel settles on a new row.          |
-| `loop`        | `boolean`                            | `false` | Wrap around, like the hour and minute wheels.        |
-| `itemHeight`  | `number`                             | `32`    | Row height in px. Pass the same to `WheelHighlight`. |
-| `visibleRows` | `number`                             | `5`     | Rows shown; the wheel is this many rows tall.        |
-| `aria-label`  | `string`                             |         | Required. The wheel is a `spinbutton`.               |
-| `className`   | `string`                             |         | Set the width here.                                  |
+| Prop          | Type                                    | Default |                                                      |
+| ------------- | --------------------------------------- | ------- | ---------------------------------------------------- |
+| `options`     | `{ value: number; label: string }[]`    |         | The rows, top to bottom.                             |
+| `value`       | `number`                                |         | The centred option's value.                          |
+| `onChange`    | `(value: number, rows: number) => void` |         | Called when the wheel settles on a new row.          |
+| `loop`        | `boolean`                               | `false` | Wrap around, like the hour and minute wheels.        |
+| `itemHeight`  | `number`                                | `32`    | Row height in px. Pass the same to `WheelHighlight`. |
+| `visibleRows` | `number`                                | `5`     | Rows shown; the wheel is this many rows tall.        |
+| `aria-label`  | `string`                                |         | Required. The wheel is a `spinbutton`.               |
+| `className`   | `string`                                |         | Set the width here.                                  |
 
 `onChange` fires once per settle, not per pixel, and not when the wheel comes
-to rest where it already was.
+to rest where it already was. `rows` is how far the wheel turned, so a looped
+wheel can tell 11 → 12 from 1 → 12. Set `value` in `onChange`, as with a
+controlled `<input>`; a wheel whose `value` stays as it was turns back to it.
 
 ## SegmentedControl
 

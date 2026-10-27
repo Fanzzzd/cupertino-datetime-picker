@@ -785,3 +785,41 @@ test("a parent that ignores a change gets the wheel back, with one report", asyn
   await page.waitForTimeout(400);
   expect(await page.evaluate(() => (window as { ignored?: number }).ignored)).toBe(2);
 });
+
+test("turning the hour wheel keeps held minute digits", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  await timePopup(page).getByRole("textbox", { name: "Minute" }).click();
+  await page.keyboard.type("1");
+  const hour = wheel(page, "Hour");
+  const box = (await hour.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, 32);
+  await expect(value(page)).toHaveText("Sep 5, 2026 7:01 PM");
+});
+
+test("a landing on the row a jump reported, after a newer value, still reports", async ({
+  page,
+}) => {
+  await open(page);
+  await timeTrigger(page).click();
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const hour = wheel(page, "Hour");
+  const box = (await hour.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const field = timePopup(page).getByRole("textbox", { name: "Hour" });
+  // A jump reports 7; the field then sets 9 and the wheel glides there.
+  await hour.focus();
+  await page.keyboard.type("7");
+  await field.focus();
+  await page.keyboard.type("9");
+  // Catch it mid-glide and drag it back onto 7, slowly so it does not glide on.
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  const at = Number(await hour.getAttribute("data-position"));
+  await page.mouse.move(x, y + (at - 6) * 32, { steps: 10 });
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  await expect(value(page)).toHaveText("Sep 5, 2026 7:30 PM");
+});

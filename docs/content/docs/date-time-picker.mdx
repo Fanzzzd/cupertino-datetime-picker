@@ -16,7 +16,9 @@ const [date, setDate] = useState<Date | null>(null);
 ## Value
 
 The value is a `Date | null`. Pass `value` and `onChange` to control it, or
-`defaultValue` to let the picker own it. With no value the pills show their
+`defaultValue` to let the picker own it. A controlled picker works like a
+controlled `<input>`: set `value` in `onChange`. If the value stays as it was,
+the wheels turn back to it. With no value the pills show their
 placeholders and the first pick starts from now.
 
 <EmptyDemo />
