@@ -4,15 +4,8 @@ import * as React from "react";
 
 import { usePrefersReducedMotion } from "./hooks";
 import { clamp, cn, mod } from "./utils";
-import {
-  flingTarget,
-  easeOutCubic,
-  glideDuration,
-  nearestCopy,
-  releaseVelocity,
-  snapIndex,
-  type DragSample,
-} from "./wheel-math";
+import { nearestRow } from "./wheel-math";
+import { WheelMotion } from "./wheel-motion";
 
 export type WheelOption = { value: number; label: string };
 
@@ -39,15 +32,12 @@ export type WheelProps = {
 /** The band behind the centre row is a little taller than a row, like iOS's. */
 export const BAND_EXTRA = 2;
 
-// Looped wheels lay the options out many times over and rest near the middle,
-// so a fling always has road in both directions: at least this many rows each
-// way. A hard trackpad flick runs a few hundred; the wheel never moves itself
-// back mid-flick, because a scroll set during a gesture ends the gesture.
-const ROAD_ROWS = 500;
-const STOP_BLOCK = 16;
 const TYPEAHEAD_MS = 700;
+/** A press that travels less than this (px) is a tap. */
+const TAP_SLOP = 4;
 
-// Where a row `offset` rows from the centre is drawn on a drum of `radius`.
+// Where a row `offset` rows from the centre is drawn on a drum of `radius`,
+// measured from the middle of the wheel.
 function drum(offset: number, rowDegrees: number, radius: number) {
   const angle = clamp(offset * rowDegrees, -90, 90);
   const rad = (angle * Math.PI) / 180;
@@ -57,18 +47,13 @@ function drum(offset: number, rowDegrees: number, radius: number) {
   };
 }
 
-type Drag = {
-  startY: number;
-  startTop: number;
-  samples: DragSample[];
-  moved: boolean;
-};
-
 /**
- * One column of an iOS picker: native scrolling with snap points (so touch
- * and trackpad flings come from the platform), mouse drag with its own
- * deceleration, a click on any row, and the keyboard — arrows step, digits
- * jump. The centre row is the value; the parent draws the highlight bar.
+ * One column of an iOS picker. The browser scrolls nothing: the wheel takes
+ * pointer, wheel and keyboard input itself, `WheelMotion` decides how it
+ * moves, and each frame draws the labels on a drum at the position it gives.
+ * Drag and fling with a finger or a mouse, spin with a wheel or trackpad,
+ * tap a row, or use the keys: arrows step, digits jump. The centre row is the
+ * value; the parent draws the highlight bar.
  */
 export function Wheel({
   options,
@@ -82,14 +67,10 @@ export function Wheel({
   "aria-label": ariaLabel,
   className,
 }: WheelProps) {
-  const scroller = React.useRef<HTMLDivElement>(null);
+  const element = React.useRef<HTMLDivElement>(null);
   const pool = React.useRef<HTMLDivElement>(null);
   const reduceMotion = usePrefersReducedMotion();
   const len = options.length;
-  const copies = loop ? 2 * Math.ceil(ROAD_ROWS / len) + 1 : 1;
-  const base = loop ? Math.floor(copies / 2) * len : 0;
-  const total = len * copies;
-  const maxIndex = total - 1;
   const selected = Math.max(
     0,
     options.findIndex((o) => o.value === value),
@@ -97,49 +78,150 @@ export function Wheel({
   const pad = ((visibleRows - 1) / 2) * itemHeight;
   // Rows sit on a drum that fills the wheel: its edge, where rows turn away
   // to nothing, is the wheel's edge, so no band of the wheel stays empty.
-  // One row of arc is one row of scroll.
+  // One row of arc is one row of travel.
   const radius = (visibleRows * itemHeight) / 2 - 4;
   const rowDegrees = ((itemHeight / radius) * 180) / Math.PI;
-  // Labels on the visible half of the drum, plus one each side.
-  const poolSize = Math.min(total, 2 * Math.ceil(90 / rowDegrees) + 3);
+  // Labels for the visible half of the drum, plus one each side.
+  const poolSize = 2 * Math.ceil(90 / rowDegrees) + 3;
+  const bounds = {
+    itemHeight,
+    first: loop ? -Infinity : 0,
+    last: loop ? Infinity : len - 1,
+    instant: reduceMotion,
+  };
 
-  // Physical row the wheel rests on; the value is `options[resting % len]`.
-  const resting = React.useRef(base + selected);
-  const drag = React.useRef<Drag | null>(null);
-  // A finger is on the wheel: the browser scrolls it, and nothing settles
-  // until the finger lifts.
-  const touching = React.useRef(false);
-  const fling = React.useRef(0);
-  const settleTimer = React.useRef(0);
+  // Row the wheel rests on; the value is `options[resting % len]`. A looped
+  // wheel's rows run on without end in both directions.
+  const resting = React.useRef(selected);
+  const [motion] = React.useState(() => new WheelMotion(selected * itemHeight, bounds));
+  const frame = React.useRef(0);
+  // A person moved the wheel last (a drag, a fling, a wheel or trackpad),
+  // rather than the wheel gliding to a value it was given.
+  const byHand = React.useRef(false);
+  const press = React.useRef<{ y: number; moved: boolean; stopped: boolean } | null>(null);
   const typeahead = React.useRef({ buffer: "", timer: 0 });
-  // A mouse click is resolved on pointer-up (pointer capture would retarget
-  // the click event); the click that follows is then ignored. WebKit labels a
-  // touch-synthesised click "mouse" too, so the click itself cannot be trusted.
-  const clickHandled = React.useRef(false);
-  // Timers and animation frames call back after this render; give them the
-  // latest handler rather than the one they closed over.
+  // Frames and listeners call back after this render; give them the latest
+  // handlers rather than the ones they closed over.
   const onChangeRef = React.useRef(onChange);
   const valueRef = React.useRef(value);
-  React.useLayoutEffect(() => {
-    onChangeRef.current = onChange;
-    valueRef.current = value;
-  });
-  // A scroll the wheel started itself (a typed value, a set prop, a key).
-  // Until the scroller gets there a settle means nothing: reporting the row
-  // it is passing would hand back a stale value, and on a busy main thread
-  // that report could land after the real one and win.
-  const arriving = React.useRef<{ physical: number; lastTop: number; nudges: number } | null>(null);
+  const latest = React.useRef({ tick: (_now: number) => {}, wheel: (_e: WheelEvent) => {} });
+
+  const optionAt = (row: number) => options.at(mod(row, len));
 
   // Only a turn is a change: settling where the wheel already was (including
   // the first layout) must not write anything. A looped wheel turned a whole
   // round reports too, so an hour wheel can carry into AM/PM.
-  const report = (physical: number, from: number) => {
-    const option = optionAt(physical);
-    if (option && (option.value !== valueRef.current || (loop && physical !== from)))
-      onChangeRef.current(option.value, physical - from);
+  const report = (row: number, from: number) => {
+    const option = optionAt(row);
+    if (option && (option.value !== valueRef.current || (loop && row !== from)))
+      onChangeRef.current(option.value, row - from);
   };
 
-  const optionAt = (physical: number) => options.at(mod(physical, len));
+  // Depth: rows sit on a drum. Each row turns away from the centre and is
+  // drawn where the turned drum puts it, so rows bunch up toward the edges.
+  const paint = () => {
+    const rows = pool.current?.children;
+    if (!rows) return;
+    const centre = motion.pos / itemHeight;
+    const from = Math.round(centre) - Math.floor(poolSize / 2);
+    const nearest = Math.round(centre);
+    for (let i = from; i < from + poolSize; i++) {
+      const row = rows[mod(i, poolSize)] as HTMLElement;
+      const label = row.firstElementChild as HTMLElement;
+      const real = loop || (i >= 0 && i < len);
+      if (row.dataset.index !== String(i)) {
+        row.dataset.index = String(i);
+        label.textContent = real ? (optionAt(i)?.label ?? "") : "";
+      }
+      Object.assign(label.style, drum(i - centre, rowDegrees, radius));
+      if (i === nearest && real) row.dataset.active = "";
+      else delete row.dataset.active;
+    }
+    // Where the wheel is, in rows, for tests and tools.
+    element.current?.setAttribute("data-position", centre.toFixed(2));
+  };
+
+  // Where the wheel stopped becomes the value.
+  const settle = () => {
+    const row = motion.row;
+    const from = resting.current;
+    resting.current = row;
+    report(row, from);
+  };
+
+  const tick = (now: number) => {
+    const moving = motion.step(now);
+    paint();
+    if (moving) {
+      frame.current = requestAnimationFrame((t) => latest.current.tick(t));
+    } else {
+      frame.current = 0;
+      settle();
+    }
+  };
+  const run = () => {
+    if (!frame.current) frame.current = requestAnimationFrame((t) => latest.current.tick(t));
+  };
+
+  // Wheel and trackpad: every delta is ours, and the page behind never
+  // scrolls while the pointer is over the wheel.
+  const onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    if (motion.dragging) return;
+    byHand.current = true;
+    const unit = e.deltaMode === 1 ? itemHeight : e.deltaMode === 2 ? visibleRows * itemHeight : 1;
+    motion.wheel(e.timeStamp, e.deltaY * unit);
+    run();
+  };
+
+  React.useLayoutEffect(() => {
+    onChangeRef.current = onChange;
+    valueRef.current = value;
+    latest.current = { tick, wheel: onWheel };
+    motion.configure(bounds);
+  });
+
+  // React's wheel listener is passive; this one may cancel the page's scroll.
+  React.useEffect(() => {
+    const el = element.current;
+    if (!el) return;
+    const listener = (e: WheelEvent) => latest.current.wheel(e);
+    el.addEventListener("wheel", listener, { passive: false });
+    return () => el.removeEventListener("wheel", listener);
+  }, []);
+
+  /** `turn: false` is a jump (Home, End, type-ahead): it reports no rows turned. */
+  const go = (row: number, turn = true) => {
+    const target = loop ? row : clamp(row, 0, len - 1);
+    const from = resting.current;
+    resting.current = target;
+    report(target, turn ? from : target);
+    byHand.current = false;
+    motion.goTo(target, performance.now());
+    run();
+  };
+
+  // The value changed from outside (typed into the field, or set by the app).
+  // A wheel in a person's hands finishes first; one gliding to an earlier
+  // value turns to the new one.
+  React.useEffect(() => {
+    if (motion.active && byHand.current) return;
+    if (optionAt(resting.current)?.value === value) return;
+    const row = loop ? nearestRow(selected, resting.current, len) : selected;
+    resting.current = row;
+    byHand.current = false;
+    motion.goTo(row, performance.now());
+    run();
+  });
+
+  // Nothing the wheel scheduled may run once it is gone.
+  React.useEffect(
+    () => () => {
+      cancelAnimationFrame(frame.current);
+      window.clearTimeout(typeahead.current.timer);
+    },
+    [],
+  );
 
   // Undo the drum: how far from the middle a point is, as an angle, is how
   // many rows from the centre row it points at.
@@ -148,217 +230,43 @@ export function Wheel({
     const fromMiddle = clamp((clientY - box.top - box.height / 2) / radius, -1, 1);
     const half = Math.floor(visibleRows / 2);
     const turn = clamp((Math.asin(fromMiddle) * 180) / Math.PI / rowDegrees, -half, half);
-    return Math.round(el.scrollTop / itemHeight + turn);
+    return Math.round(motion.pos / itemHeight + turn);
   };
 
-  // Depth: rows sit on a drum. Each row turns away from the centre and is
-  // drawn where the turned drum puts it, so rows bunch up toward the edges.
-  // The labels are not scrolled: they hang in a layer pinned to the wheel's
-  // window, and each frame turns the drum to the scroll position, so a fast
-  // flick can never show rows that are not drawn yet.
-  const paint = () => {
-    const el = scroller.current;
-    if (!el) return;
-    const centre = el.scrollTop / itemHeight;
-    const rows = pool.current?.children;
-    if (!rows) return;
-    const from = clamp(Math.round(centre) - Math.floor(poolSize / 2), 0, total - poolSize);
-    const nearest = snapIndex(el.scrollTop, itemHeight);
-    for (let i = from; i < from + poolSize; i++) {
-      const row = rows[mod(i, poolSize)] as HTMLElement;
-      const label = row.firstElementChild as HTMLElement;
-      if (row.dataset.index !== String(i)) {
-        row.dataset.index = String(i);
-        label.textContent = optionAt(i)?.label ?? "";
-      }
-      Object.assign(label.style, drum(i - centre, rowDegrees, radius));
-      if (i === nearest) row.dataset.active = "";
-      else delete row.dataset.active;
-    }
-  };
-
-  const scrollToIndex = (physical: number, smooth: boolean) => {
-    const el = scroller.current;
-    if (!el) return;
-    const target = clamp(physical, 0, maxIndex);
-    arriving.current = { physical: target, lastTop: -1, nudges: 0 };
-    el.scrollTo({
-      top: target * itemHeight,
-      behavior: smooth && !reduceMotion ? "smooth" : "auto",
-    });
-  };
-
-  // Where the wheel stopped becomes the value; looped wheels quietly re-centre.
-  const settle = () => {
-    const el = scroller.current;
-    if (!el || drag.current || fling.current || touching.current) return;
-    const a = arriving.current;
-    if (a && snapIndex(el.scrollTop, itemHeight) !== a.physical) {
-      if (el.scrollTop !== a.lastTop) {
-        // Still on its way; look again once it has had time to move.
-        a.lastTop = el.scrollTop;
-        window.clearTimeout(settleTimer.current);
-        settleTimer.current = window.setTimeout(settle, 120);
-        return;
-      }
-      if (a.nudges < 3) {
-        // The same spot twice: the animation was cut short. Send it again.
-        a.nudges += 1;
-        el.scrollTo({ top: a.physical * itemHeight, behavior: reduceMotion ? "auto" : "smooth" });
-        return;
-      }
-    }
-    arriving.current = null;
-    let idx = snapIndex(el.scrollTop, itemHeight);
-    const from = resting.current;
-    const turned = idx;
-    if (loop) {
-      // Only a wheel far from the middle moves back, by whole loops.
-      const away = idx - (base + Math.floor(len / 2));
-      const centred = Math.abs(away) > ROAD_ROWS / 2 ? idx - Math.round(away / len) * len : idx;
-      if (idx !== centred) {
-        idx = centred;
-        el.scrollTop = idx * itemHeight;
-        // Draw the drum at the new copy now, not a frame later.
-        paint();
-      }
-    }
-    resting.current = idx;
-    report(turned, from);
-  };
-
-  /** `turn: false` is a jump (Home, End, type-ahead): it reports no rows turned. */
-  const go = (physical: number, turn = true) => {
-    const target = clamp(physical, 0, maxIndex);
-    const from = resting.current;
-    resting.current = target;
-    report(target, turn ? from : target);
-    scrollToIndex(target, true);
-  };
-
-  // Initial rest, without animation.
-  const mounted = React.useRef(false);
-  React.useLayoutEffect(() => {
-    if (mounted.current) return;
-    mounted.current = true;
-    scroller.current?.scrollTo({ top: resting.current * itemHeight });
-    paint();
-  });
-
-  // The value changed from outside (typed into the field, or set by the app).
-  React.useEffect(() => {
-    if (drag.current || fling.current) return;
-    if (options.at(mod(resting.current, len))?.value === value) return;
-    const physical = loop ? nearestCopy(selected, resting.current, len, copies) : selected;
-    resting.current = physical;
-    scrollToIndex(physical, true);
-  });
-
-  // Nothing the wheel scheduled may run once it is gone.
-  React.useEffect(
-    () => () => {
-      cancelAnimationFrame(fling.current);
-      window.clearTimeout(settleTimer.current);
-      window.clearTimeout(typeahead.current.timer);
-    },
-    [],
-  );
-
-  const onScroll = () => {
-    paint();
-    // `scrollend` is the real signal; the timer covers engines without it.
-    window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(settle, 120);
-  };
-
-  const onScrollEnd = () => {
-    window.clearTimeout(settleTimer.current);
-    settle();
-  };
-
-  // Touch is native scrolling: pointer events end in `pointercancel` as soon
-  // as the browser takes the gesture, so the finger is tracked by touch events.
-  const onTouchStart = () => {
-    touching.current = true;
-    arriving.current = null;
-    window.clearTimeout(settleTimer.current);
-  };
-  const onTouchEnd = () => {
-    touching.current = false;
-    // The momentum that follows keeps pushing this back; a finger lifted
-    // from a still wheel settles here.
-    window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(settle, 120);
-  };
-
-  // Mouse drag: the browser gives touch a fling for free, the mouse needs one.
+  // A finger, pen or mouse: the press holds the wheel (and stops a spinning
+  // one), a drag turns it, the release flings it on.
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    // A finger or a pointer on the wheel takes over from any scroll in flight.
-    arriving.current = null;
-    if (e.pointerType !== "mouse" || e.button !== 0) return;
-    const el = e.currentTarget;
-    cancelAnimationFrame(fling.current);
-    fling.current = 0;
-    el.setPointerCapture(e.pointerId);
-    el.style.scrollSnapType = "none";
-    drag.current = {
-      startY: e.clientY,
-      startTop: el.scrollTop,
-      samples: [{ t: e.timeStamp, top: el.scrollTop }],
-      moved: false,
-    };
+    if (e.button !== 0) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    press.current = { y: e.clientY, moved: false, stopped: motion.active };
+    byHand.current = true;
+    motion.grab(e.timeStamp, e.clientY);
+    run();
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    const el = e.currentTarget;
-    const top = clamp(d.startTop - (e.clientY - d.startY), 0, maxIndex * itemHeight);
-    d.samples.push({ t: e.timeStamp, top });
-    // Keep only what the release speed reads.
-    if (d.samples.length > 32) d.samples.splice(0, d.samples.length - 32);
-    if (Math.abs(e.clientY - d.startY) > 3) d.moved = true;
-    el.scrollTop = top;
+    const p = press.current;
+    if (!p) return;
+    if (Math.abs(e.clientY - p.y) > TAP_SLOP) p.moved = true;
+    motion.drag(e.timeStamp, e.clientY);
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    drag.current = null;
-    const el = e.currentTarget;
-    el.releasePointerCapture(e.pointerId);
-    if (!d.moved) {
-      // A click: the row under the pointer becomes the value.
-      el.style.scrollSnapType = "";
-      go(rowAt(el, e.clientY));
-      clickHandled.current = true;
-      return;
-    }
-    clickHandled.current = true;
-    // Glide on at the speed the hand let go and come to rest exactly on a row.
-    const v = releaseVelocity(d.samples, e.timeStamp);
-    const from = el.scrollTop;
-    const distance = flingTarget(from, v, itemHeight, maxIndex) * itemHeight - from;
-    const duration = reduceMotion ? 0 : glideDuration(distance, v);
-    const start = performance.now();
-    const step = (now: number) => {
-      const t = duration === 0 ? 1 : Math.min(1, Math.max(0, now - start) / duration);
-      el.scrollTop = from + distance * easeOutCubic(t);
-      if (t === 1) {
-        fling.current = 0;
-        el.style.scrollSnapType = "";
-        settle();
-        return;
-      }
-      fling.current = requestAnimationFrame(step);
-    };
-    fling.current = requestAnimationFrame(step);
+    const p = press.current;
+    if (!p) return;
+    press.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId))
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    // A tap picks the row under it; a tap that stopped a spin only stops it.
+    if (!p.moved && !p.stopped && e.type === "pointerup") go(rowAt(e.currentTarget, e.clientY));
+    else motion.release(e.timeStamp);
+    run();
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const r = resting.current;
-    const first = loop ? base : 0;
-    const last = loop ? base + len - 1 : len - 1;
+    const first = loop ? r - mod(r, len) : 0;
+    const last = first + len - 1;
     switch (e.key) {
       case "ArrowUp":
         go(r - 1);
@@ -393,9 +301,9 @@ export function Wheel({
             (o) => String(o.value) === ta.buffer || o.label.toLowerCase().startsWith(ta.buffer),
           );
           if (retry === -1) return;
-          go(loop ? nearestCopy(retry, r, len, copies) : retry, false);
+          go(loop ? nearestRow(retry, r, len) : retry, false);
         } else {
-          go(loop ? nearestCopy(hit, r, len, copies) : hit, false);
+          go(loop ? nearestRow(hit, r, len) : hit, false);
         }
         break;
       }
@@ -403,41 +311,15 @@ export function Wheel({
     e.preventDefault();
   };
 
-  // A click on a row (delegated, so the rows below stay the same elements
-  // from render to render).
-  const onRowClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (clickHandled.current) {
-      clickHandled.current = false;
-      return;
-    }
-    if (scroller.current) go(rowAt(scroller.current, e.clientY));
-  };
-
-  // Where the wheel can stop: one empty row per physical row. They never
-  // move, because WebKit and Chrome re-snap when a snap target moves.
-  // Plain HTML, parsed by the browser rather than built by React. Stops come
-  // in placed blocks: stacked all the way, a zoomed page rounds every row's
-  // height and a thousand rows drift several pixels off the labels; placed
-  // one by one, WebKit slows to a crawl.
-  const stops = React.useMemo(() => {
-    let html = "";
-    for (let i = 0; i < total; i += STOP_BLOCK) {
-      const n = Math.min(STOP_BLOCK, total - i);
-      html += `<div class="cdp-stops" style="top:${pad + i * itemHeight}px">`;
-      html += `<div class="cdp-stop" style="height:${itemHeight}px"></div>`.repeat(n);
-      html += "</div>";
-    }
-    return { __html: html };
-  }, [total, pad, itemHeight]);
-
   // The labels, a pool rebuilt only when the options change, so a new value
   // re-renders the wheel and not its rows. It is first drawn around the
   // resting row; from then on `paint` turns the drum and sets the labels.
-  const [firstRest] = React.useState(() => base + selected);
+  const [firstRest] = React.useState(selected);
   const rows = React.useMemo(() => {
-    const at = clamp(firstRest - Math.floor(poolSize / 2), 0, total - poolSize);
+    const at = firstRest - Math.floor(poolSize / 2);
     return Array.from({ length: poolSize }, (_, k) => {
       const i = at + mod(k - at, poolSize);
+      const real = loop || (i >= 0 && i < len);
       return (
         <div
           key={k}
@@ -458,14 +340,16 @@ export function Wheel({
               align === "end" ? `0 ${inset}px` : align === "start" ? `${inset}px 0` : undefined,
           }}
         >
-          <span style={drum(i - firstRest, rowDegrees, radius)}>{options.at(i % len)?.label}</span>
+          <span style={drum(i - firstRest, rowDegrees, radius)}>
+            {real ? options.at(mod(i, len))?.label : ""}
+          </span>
         </div>
       );
     });
-  }, [options, len, firstRest, poolSize, total, pad, itemHeight, rowDegrees, radius, align, inset]);
+  }, [options, len, loop, firstRest, poolSize, pad, itemHeight, rowDegrees, radius, align, inset]);
 
-  // A new pool is drawn on the drum before it is seen.
-  const paintedRows = React.useRef(rows);
+  // The first layout, and a new pool, are drawn before they are seen.
+  const paintedRows = React.useRef<typeof rows | null>(null);
   React.useLayoutEffect(() => {
     if (paintedRows.current === rows) return;
     paintedRows.current = rows;
@@ -475,11 +359,11 @@ export function Wheel({
   const current = options.at(selected);
 
   return (
-    // The focus ring hugs the centre row, outside the scroller and in the
+    // The focus ring hugs the centre row, outside the wheel and in the
     // middle of the group's fade, so the fade never dims it.
     <div className={cn("relative", className)}>
       <div
-        ref={scroller}
+        ref={element}
         role="spinbutton"
         tabIndex={0}
         aria-label={ariaLabel}
@@ -488,38 +372,16 @@ export function Wheel({
         aria-valuemin={options.at(0)?.value}
         aria-valuemax={options.at(-1)?.value}
         data-slot="wheel"
-        onScroll={onScroll}
-        onScrollEnd={onScrollEnd}
-        onWheel={() => (arriving.current = null)}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
         onKeyDown={onKeyDown}
-        className={cn(
-          "cdp-wheel peer relative w-full snap-y snap-mandatory overflow-y-scroll overscroll-contain outline-none select-none",
-        )}
-        style={{ height: visibleRows * itemHeight, scrollbarWidth: "none", touchAction: "pan-y" }}
+        className="cdp-wheel peer relative w-full overflow-hidden outline-none select-none"
+        style={{ height: visibleRows * itemHeight, touchAction: "none" }}
       >
-        <div
-          aria-hidden
-          className="relative"
-          style={{ height: total * itemHeight + 2 * pad }}
-          onClick={onRowClick}
-        >
-          {/* Pinned to the wheel's window, so the scroll never carries the
-              labels; it takes no room, so the stops start at the top. */}
-          <div
-            ref={pool}
-            className="pointer-events-none sticky top-0"
-            style={{ height: visibleRows * itemHeight, marginBottom: -visibleRows * itemHeight }}
-          >
-            {rows}
-          </div>
-          <div dangerouslySetInnerHTML={stops} />
+        <div ref={pool} aria-hidden className="pointer-events-none absolute inset-0">
+          {rows}
         </div>
       </div>
       <div

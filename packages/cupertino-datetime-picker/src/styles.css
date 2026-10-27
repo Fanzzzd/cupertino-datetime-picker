@@ -49,21 +49,6 @@
   color: var(--cdp-label);
 }
 
-.cdp-wheel::-webkit-scrollbar {
-  display: none;
-}
-
-/* A wheel's snap stops, written as plain HTML. */
-.cdp-stops {
-  position: absolute;
-  inset-inline: 0;
-  pointer-events: none;
-}
-
-.cdp-stop {
-  scroll-snap-align: center;
-}
-
 .cdp-wheel-mask {
   mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
 }

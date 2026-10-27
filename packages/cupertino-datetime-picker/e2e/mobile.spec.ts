@@ -74,11 +74,11 @@ test("a touch fling spins the minute wheel and the field follows", async ({
   await timeTrigger(page).tap();
   const minute = wheel(page, "Minute");
   const current = async () => Number(await minute.getAttribute("aria-valuenow"));
-  const top = () => minute.evaluate((el) => el.scrollTop);
+  const top = () => minute.getAttribute("data-position");
   // The popover is still springing in when the tap returns; a gesture aimed at
   // the scaled-down wheel misses it. Let the animations finish first, and try
   // again if a busy runner dropped the gesture anyway. A dropped gesture is
-  // one that left the scroller where it was, not one whose value has not
+  // one that left the wheel where it was, not one whose value has not
   // settled yet: a second flick on a spinning wheel stops it.
   await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
   const start = await top();
@@ -127,9 +127,9 @@ test("a finger held on a wheel writes nothing until it lifts", async ({ page, br
     });
     await page.waitForTimeout(30);
   }
-  const held = await minute.evaluate((el) => el.scrollTop);
+  const held = await minute.getAttribute("data-position");
   await page.waitForTimeout(600);
-  expect(await minute.evaluate((el) => el.scrollTop)).toBe(held);
+  expect(await minute.getAttribute("data-position")).toBe(held);
   await expect(value(page)).toHaveText("Sep 5, 2026 6:30 PM");
   await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   await expect(value(page)).not.toHaveText("Sep 5, 2026 6:30 PM");

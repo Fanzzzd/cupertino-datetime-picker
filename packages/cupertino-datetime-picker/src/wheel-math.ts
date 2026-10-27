@@ -1,16 +1,9 @@
-import { clamp } from "./utils";
-
-/** The row a scroll offset rests on. */
-export function snapIndex(scrollTop: number, itemHeight: number): number {
-  return Math.round(scrollTop / itemHeight);
-}
+import { clamp, mod } from "./utils";
 
 /**
- * Where a released drag comes to rest. `velocity` is d(scrollTop)/dt in
- * px/ms; the projection mirrors UIScrollView's normal deceleration, then
- * lands on a row.
+ * How far a released wheel glides per px/ms of release speed: `velocity ×
+ * FLING_MS`, close to UIScrollView's normal deceleration.
  */
-/** How far a released wheel glides per px/ms of release speed: `velocity × FLING_MS`. */
 export const FLING_MS = 460;
 
 export type DragSample = { t: number; top: number };
@@ -44,22 +37,12 @@ export function easeOutCubic(t: number): number {
   return 1 - (1 - t) ** 3;
 }
 
-export function flingTarget(
-  scrollTop: number,
-  velocity: number,
-  itemHeight: number,
-  maxIndex: number,
-): number {
-  const projected = scrollTop + velocity * FLING_MS;
-  return clamp(snapIndex(projected, itemHeight), 0, maxIndex);
-}
-
-/** Of the copies of `logical` in a looped wheel, the one nearest `from`. */
-export function nearestCopy(logical: number, from: number, len: number, copies: number): number {
-  let best = logical;
-  for (let c = 0; c < copies; c++) {
-    const candidate = c * len + logical;
-    if (Math.abs(candidate - from) < Math.abs(best - from)) best = candidate;
-  }
-  return best;
+/**
+ * The row showing option `logical` nearest row `from` on a looped wheel of
+ * `len` options, so a jump spins the short way round.
+ */
+export function nearestRow(logical: number, from: number, len: number): number {
+  let d = mod(logical - from, len);
+  if (d > len / 2) d -= len;
+  return from + d;
 }

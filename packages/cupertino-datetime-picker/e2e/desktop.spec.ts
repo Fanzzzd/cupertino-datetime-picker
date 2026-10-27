@@ -285,21 +285,16 @@ test("jumps on the hour wheel do not carry into AM/PM; a hard fling has road", a
   await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
   const box = (await hour.boundingBox())!;
   const x = box.x + box.width / 2;
-  const peak = await hour.evaluate((el) => {
-    const w = window as unknown as { peak: number };
-    w.peak = 0;
-    el.addEventListener("scroll", () => (w.peak = Math.max(w.peak, el.scrollTop)));
-    return el.scrollHeight - el.clientHeight;
-  });
+  const position = async () => Number(await hour.getAttribute("data-position"));
+  const before = await position();
   await page.mouse.move(x, box.y + box.height - 8);
   await page.mouse.down();
   for (let i = 1; i <= 6; i++) await page.mouse.move(x, box.y + box.height - 8 - i * 34);
   await page.mouse.up();
-  await page.waitForTimeout(2500);
-  // The glide stops on its own, short of the end of the rows.
-  expect(await page.evaluate(() => (window as unknown as { peak: number }).peak)).toBeLessThan(
-    peak - 32,
-  );
+  // The wheel has no end to run into: it stops on its own, on a row, at least
+  // as far as the hand moved it (a busy runner's event pacing may allow no glide).
+  await expect.poll(async () => Number.isInteger(await position()), { timeout: 4000 }).toBe(true);
+  expect((await position()) - before).toBeGreaterThanOrEqual(6);
 });
 
 test("wheel columns align like iOS: hours end where minutes begin", async ({ page }) => {
@@ -465,60 +460,54 @@ test("opening the clock writes nothing until something changes", async ({ page }
   await expect(value(page)).toHaveText("Sep 5, 2026 6:31 PM");
 });
 
-test("a long trackpad flick on a looped wheel never reaches the end of its rows", async ({
-  page,
-}) => {
+test("a long trackpad flick runs its full length and is never blank", async ({ page }) => {
   await open(page);
   await timeTrigger(page).click();
   const minute = wheel(page, "Minute");
   await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
   const box = (await minute.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  const end = await minute.evaluate((el) => {
-    const w = window as unknown as { low: number; high: number; fewest: number };
-    w.low = el.scrollTop;
-    w.high = el.scrollTop;
+  await minute.evaluate((el) => {
+    const w = window as unknown as { far: number; fewest: number };
+    w.far = 0;
     w.fewest = Infinity;
-    el.addEventListener("scroll", () => {
-      w.low = Math.min(w.low, el.scrollTop);
-      w.high = Math.max(w.high, el.scrollTop);
-      // However fast it spins, the wheel is never blank.
-      const box = el.getBoundingClientRect();
+    const start = Number(el.dataset.position);
+    const look = () => {
+      w.far = Math.max(w.far, Math.abs(Number(el.dataset.position) - start));
+      // However fast it spins, the wheel always shows its rows.
+      const frame = el.getBoundingClientRect();
       const shown = [...el.querySelectorAll<HTMLElement>("[data-index] span")].filter((s) => {
         const b = s.getBoundingClientRect();
         const y = b.top + b.height / 2;
-        return Number(s.style.opacity) > 0.3 && y > box.top && y < box.bottom;
+        return (
+          s.textContent !== "" && Number(s.style.opacity) > 0.3 && y > frame.top && y < frame.bottom
+        );
       }).length;
       w.fewest = Math.min(w.fewest, shown);
-    });
-    return el.scrollHeight - el.clientHeight;
+    };
+    new MutationObserver(look).observe(el, { attributeFilter: ["data-position"] });
   });
   // A macOS trackpad flick: the fingers' strokes, then momentum events that
-  // decay over a second or more, about 5000px in all (150 rows).
-  for (const sign of [1, -1]) {
-    let delta = 400;
-    while (delta > 1) {
-      await page.mouse.wheel(0, sign * delta);
-      delta *= 0.9;
-    }
-    await page.waitForTimeout(600);
+  // decay, about 4000px (125 rows) in all.
+  let delta = 400;
+  while (delta > 1) {
+    await page.mouse.wheel(0, delta);
+    delta *= 0.9;
   }
-  const { low, high, fewest } = await page.evaluate(() => {
-    const w = window as unknown as { low: number; high: number; fewest: number };
-    return { low: w.low, high: w.high, fewest: w.fewest };
-  });
-  expect(fewest).toBeGreaterThanOrEqual(4);
-  expect(low).toBeGreaterThan(0);
-  expect(high).toBeLessThan(end);
-  // And it is not cut short: the flick runs its full length.
-  expect(high - low).toBeGreaterThan(100 * 32);
-  // It rests on a row, and the field agrees with it.
-  const top = await minute.evaluate((el) => el.scrollTop);
-  expect(top % 32).toBe(0);
   const field = timePopup(page).getByRole("textbox", { name: "Minute" });
+  // It rests on a row, and the field agrees with it.
+  await expect
+    .poll(async () => Number.isInteger(Number(await minute.getAttribute("data-position"))))
+    .toBe(true);
   await expect(field).toHaveValue(
     String(await minute.getAttribute("aria-valuenow")).padStart(2, "0"),
   );
+  const { far, fewest } = await page.evaluate(() => {
+    const w = window as unknown as { far: number; fewest: number };
+    return { far: w.far, fewest: w.fewest };
+  });
+  expect(far).toBeGreaterThan(100);
+  expect(fewest).toBeGreaterThanOrEqual(4);
 });
 
 test("on a zoomed page the centre row still sits in the band", async ({ page }) => {
