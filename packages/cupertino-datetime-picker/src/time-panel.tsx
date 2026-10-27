@@ -103,25 +103,31 @@ export function TimePanel({
   const emit = (next: Date) => {
     if (next.getTime() !== value.getTime()) onChange(next);
   };
+  // A wheel or the AM/PM control writes its own part of the time. Digits held
+  // in the other segment stay held over the new time, still waiting for
+  // their segment to complete; digits held in its own segment give way.
+  const writePart = (next: Date, keep: (h: Held) => Held | null) => {
+    setHeld(live ? keep({ ...live, at: next.getTime() }) : null);
+    emit(next);
+  };
   // Turning the hour wheel n rows is n hours on the clock, so passing 11 ↔ 12
-  // carries into AM/PM, as on iOS. A jump (no rows) keeps the period. Held
-  // minute digits are kept.
+  // carries into AM/PM, as on iOS. A jump (no rows) keeps the period.
   const turnHour = (shown: number, rows: number) => {
     const turned = mod(hours24 + rows, 24);
     const hours = twelve && to12(turned).hour === shown ? turned : twelve ? to24(shown, pm) : shown;
-    setHeld(null);
-    emit(withTime(value, hours, field.minutes));
+    writePart(withTime(value, hours, minutes), (h) =>
+      h.typing?.segment === "minute" ? { ...h, hours } : null,
+    );
   };
-  // A wheel or the AM/PM control turned while digits are held writes the
-  // held time with its own part changed.
-  const setMinute = (m: number) => {
-    setHeld(null);
-    emit(withTime(value, field.hours, m));
-  };
-  const setPm = (next: boolean) => {
-    setHeld(null);
-    emit(withTime(value, to24(to12(field.hours).hour, next), field.minutes));
-  };
+  const setMinute = (m: number) =>
+    writePart(withTime(value, hours24, m), (h) =>
+      h.typing?.segment === "hour" ? { ...h, minutes: m } : null,
+    );
+  const setPm = (next: boolean) =>
+    writePart(withTime(value, to24(hour12, next), minutes), (h) => ({
+      ...h,
+      hours: to24(to12(h.hours).hour, next),
+    }));
 
   const focusSegment = (segment: Segment) => {
     const el = segment === "hour" ? hourRef.current : minuteRef.current;

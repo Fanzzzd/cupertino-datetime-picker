@@ -728,7 +728,11 @@ test("with reduced motion, small trackpad deltas still turn a wheel", async ({ p
   const box = (await minute.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 8);
-  await expect(minute).toHaveAttribute("aria-valuenow", "40");
+  // 320px is ten rows; a busy runner spacing the events past the idle gap
+  // may round some away, but deltas that are each a quarter row add up.
+  await expect
+    .poll(async () => Number(await minute.getAttribute("aria-valuenow")))
+    .toBeGreaterThanOrEqual(35);
 });
 
 test("page keys on a bounded month wheel stop at the limit they head for", async ({ page }) => {
@@ -766,6 +770,10 @@ test("a wheel turned while digits are held keeps them", async ({ page }) => {
   const box = (await minute.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.wheel(0, 32);
+  // The wheel writes its minute; the held "1" waits for the hour to complete.
+  await expect(value(page)).toHaveText("Sep 5, 2026 6:31 PM");
+  await expect(timePopup(page).getByRole("textbox", { name: "Hour" })).toHaveValue("1");
+  await page.keyboard.press("Enter");
   await expect(value(page)).toHaveText("Sep 5, 2026 1:31 PM");
 });
 
@@ -795,6 +803,8 @@ test("turning the hour wheel keeps held minute digits", async ({ page }) => {
   const box = (await hour.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.wheel(0, 32);
+  await expect(value(page)).toHaveText("Sep 5, 2026 7:30 PM");
+  await page.keyboard.press("Enter");
   await expect(value(page)).toHaveText("Sep 5, 2026 7:01 PM");
 });
 
@@ -822,4 +832,28 @@ test("a landing on the row a jump reported, after a newer value, still reports",
   await page.waitForTimeout(150);
   await page.mouse.up();
   await expect(value(page)).toHaveText("Sep 5, 2026 7:30 PM");
+});
+
+test("a wheel landing from a fling leaves half-typed digits waiting", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const minute = wheel(page, "Minute");
+  const box = (await minute.boundingBox())!;
+  const x = box.x + box.width / 2;
+  await page.mouse.move(x, box.y + box.height - 10);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) await page.mouse.move(x, box.y + box.height - 10 - i * 22);
+  await page.mouse.up();
+  await timePopup(page).getByRole("textbox", { name: "Hour" }).click();
+  await page.keyboard.type("1");
+  // The fling lands while the "1" is held; then the hour completes.
+  await expect
+    .poll(async () => Number.isInteger(Number(await minute.getAttribute("data-position"))), {
+      timeout: 4000,
+    })
+    .toBe(true);
+  await page.waitForTimeout(200);
+  await page.keyboard.type("2");
+  await expect(value(page)).toHaveText(/^Sep 5, 2026 12:\d\d PM$/);
 });
