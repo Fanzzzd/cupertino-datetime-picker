@@ -39,10 +39,14 @@ export type WheelProps = {
 /** The band behind the centre row is a little taller than a row, like iOS's. */
 export const BAND_EXTRA = 2;
 
-// Looped wheels render the options several times and rest in the middle
-// copy, so a fling always has road in both directions: at least this many
-// rows each way, which a hard fling does not use up.
-const ROAD_ROWS = 60;
+// Looped wheels lay the options out many times over and rest near the middle,
+// so a fling always has road in both directions: at least this many rows each
+// way. A hard trackpad flick runs a few hundred; the wheel never moves itself
+// back mid-flick, because a scroll set during a gesture ends the gesture.
+const ROAD_ROWS = 500;
+// Rows on the page beyond the visible ones: only a pool of row elements
+// exists, moved along under the scroll position.
+const SPARE_ROWS = 8;
 const TYPEAHEAD_MS = 700;
 
 type Drag = {
@@ -71,11 +75,18 @@ export function Wheel({
   className,
 }: WheelProps) {
   const scroller = React.useRef<HTMLDivElement>(null);
+  const pool = React.useRef<HTMLDivElement>(null);
   const reduceMotion = usePrefersReducedMotion();
   const len = options.length;
   const copies = loop ? 2 * Math.ceil(ROAD_ROWS / len) + 1 : 1;
   const base = loop ? Math.floor(copies / 2) * len : 0;
-  const maxIndex = len * copies - 1;
+  const total = len * copies;
+  const maxIndex = total - 1;
+  // A looped pool holds whole loops, so moving the wheel back by whole pools
+  // leaves every row element showing the same row in the same place.
+  const poolSize = loop
+    ? len * Math.ceil((visibleRows + SPARE_ROWS) / len)
+    : Math.min(len, visibleRows + SPARE_ROWS);
   const selected = Math.max(
     0,
     options.findIndex((o) => o.value === value),
@@ -94,9 +105,6 @@ export function Wheel({
   // until the finger lifts.
   const touching = React.useRef(false);
   const fling = React.useRef(0);
-  // When the last wheel event came: a trackpad's momentum arrives as more
-  // wheel events, so while they come the wheel is still being flung.
-  const wheeledAt = React.useRef(-Infinity);
   const settleTimer = React.useRef(0);
   const typeahead = React.useRef({ buffer: "", timer: 0 });
   // A mouse click is resolved on pointer-up (pointer capture would retarget
@@ -134,15 +142,17 @@ export function Wheel({
     const el = scroller.current;
     if (!el) return;
     const centre = el.scrollTop / itemHeight;
-    const rows = el.firstElementChild?.children;
+    const rows = pool.current?.children;
     if (!rows) return;
-    const from = Math.max(0, Math.floor(centre) - visibleRows);
-    const to = Math.min(rows.length - 1, Math.ceil(centre) + visibleRows);
+    const from = clamp(Math.round(centre) - Math.floor(poolSize / 2), 0, total - poolSize);
     const nearest = snapIndex(el.scrollTop, itemHeight);
-    for (let i = from; i <= to; i++) {
-      const row = rows[i] as HTMLElement;
-      // The label moves, not the row: rows are the snap targets, and WebKit
-      // snaps to where a transformed row is drawn.
+    for (let i = from; i < from + poolSize; i++) {
+      const row = rows[mod(i, poolSize)] as HTMLElement;
+      if (row.dataset.index !== String(i)) {
+        row.dataset.index = String(i);
+        row.style.transform = `translateY(${pad + i * itemHeight}px)`;
+        row.firstElementChild!.textContent = optionAt(i)?.label ?? "";
+      }
       const label = row.firstElementChild as HTMLElement | null;
       const offset = i - centre;
       const angle = clamp(offset * rowDegrees, -90, 90);
@@ -194,7 +204,10 @@ export function Wheel({
     const from = resting.current;
     const turned = idx;
     if (loop) {
-      const centred = base + mod(idx, len);
+      // Only a wheel far from the middle moves back, by whole pools.
+      const away = idx - (base + Math.floor(len / 2));
+      const centred =
+        Math.abs(away) > ROAD_ROWS / 2 ? idx - Math.round(away / poolSize) * poolSize : idx;
       if (idx !== centred) {
         idx = centred;
         el.scrollTop = idx * itemHeight;
@@ -243,21 +256,7 @@ export function Wheel({
     [],
   );
 
-  // A hard trackpad flick runs further than any road: it would hit the end of
-  // the rows and bounce. Mid-flick, a looped wheel far from the middle copy
-  // moves back by whole loops, which draws the same rows.
-  const keepOnRoad = (el: HTMLDivElement) => {
-    if (!loop || drag.current || fling.current || touching.current) return;
-    if (performance.now() - wheeledAt.current > 200) return;
-    const away = el.scrollTop / itemHeight - (base + (len - 1) / 2);
-    if (Math.abs(away) < ROAD_ROWS / 2) return;
-    const shift = Math.round(away / len) * len;
-    el.scrollTop -= shift * itemHeight;
-    resting.current -= shift;
-  };
-
-  const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    keepOnRoad(e.currentTarget);
+  const onScroll = () => {
     paint();
     // `scrollend` is the real signal; the timer covers engines without it.
     window.clearTimeout(settleTimer.current);
@@ -413,17 +412,31 @@ export function Wheel({
     if (row) go(Number(row.dataset.index));
   };
 
-  // Hundreds of rows on a looped wheel; rebuilt only when the options change,
-  // so a new value re-renders the wheel and not every row in it.
-  const rows = React.useMemo(
-    () =>
-      Array.from({ length: len * copies }, (_, i) => (
+  // Where the wheel can stop: one empty row per physical row. They never
+  // move, because WebKit and Chrome re-snap when a snap target moves.
+  // Plain HTML, parsed by the browser rather than built by React.
+  const stops = React.useMemo(
+    () => ({
+      __html: `<div class="cdp-stop" style="height:${itemHeight}px"></div>`.repeat(total),
+    }),
+    [total, itemHeight],
+  );
+
+  // The labels, a pool rebuilt only when the options change, so a new value re-renders
+  // the wheel and not its rows. It is first drawn around the resting row;
+  // from then on `paint` moves the rows and sets their labels.
+  const [firstRest] = React.useState(() => base + selected);
+  const rows = React.useMemo(() => {
+    const at = clamp(firstRest - Math.floor(poolSize / 2), 0, total - poolSize);
+    return Array.from({ length: poolSize }, (_, k) => {
+      const i = at + mod(k - at, poolSize);
+      return (
         <div
-          key={i}
+          key={k}
           role="presentation"
           data-index={i}
           className={cn(
-            "flex snap-center items-center text-[22px] leading-none text-[var(--cdp-secondary)] tabular-nums data-active:text-[var(--cdp-label)]",
+            "absolute inset-x-0 top-0 flex items-center text-[22px] leading-none text-[var(--cdp-secondary)] tabular-nums data-active:text-[var(--cdp-label)]",
             align === "start"
               ? "justify-start"
               : align === "end"
@@ -431,6 +444,7 @@ export function Wheel({
                 : "justify-center",
           )}
           style={{
+            transform: `translateY(${pad + i * itemHeight}px)`,
             height: itemHeight,
             paddingInline:
               align === "end" ? `0 ${inset}px` : align === "start" ? `${inset}px 0` : undefined,
@@ -438,9 +452,17 @@ export function Wheel({
         >
           <span>{options.at(i % len)?.label}</span>
         </div>
-      )),
-    [options, len, copies, itemHeight, align, inset],
-  );
+      );
+    });
+  }, [options, len, firstRest, poolSize, total, pad, itemHeight, align, inset]);
+
+  // A new pool is drawn on the drum before it is seen.
+  const paintedRows = React.useRef(rows);
+  React.useLayoutEffect(() => {
+    if (paintedRows.current === rows) return;
+    paintedRows.current = rows;
+    paint();
+  });
 
   const current = options.at(selected);
 
@@ -460,10 +482,7 @@ export function Wheel({
         data-slot="wheel"
         onScroll={onScroll}
         onScrollEnd={onScrollEnd}
-        onWheel={() => {
-          arriving.current = null;
-          wheeledAt.current = performance.now();
-        }}
+        onWheel={() => (arriving.current = null)}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -477,8 +496,11 @@ export function Wheel({
         )}
         style={{ height: visibleRows * itemHeight, scrollbarWidth: "none", touchAction: "pan-y" }}
       >
-        <div aria-hidden style={{ paddingBlock: pad }} onClick={onRowClick}>
-          {rows}
+        <div aria-hidden className="relative" style={{ paddingBlock: pad }} onClick={onRowClick}>
+          <div ref={pool} className="absolute inset-x-0 top-0">
+            {rows}
+          </div>
+          <div dangerouslySetInnerHTML={stops} />
         </div>
       </div>
       <div

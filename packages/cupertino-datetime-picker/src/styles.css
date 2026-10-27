@@ -53,6 +53,11 @@
   display: none;
 }
 
+/* A wheel's snap stops, written as plain HTML. */
+.cdp-stop {
+  scroll-snap-align: center;
+}
+
 .cdp-wheel-mask {
   mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
 }

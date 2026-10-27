@@ -501,6 +501,8 @@ test("a long trackpad flick on a looped wheel never reaches the end of its rows"
   });
   expect(low).toBeGreaterThan(0);
   expect(high).toBeLessThan(end);
+  // And it is not cut short: the flick runs its full length.
+  expect(high - low).toBeGreaterThan(100 * 32);
   // It rests on a row, and the field agrees with it.
   const top = await minute.evaluate((el) => el.scrollTop);
   expect(top % 32).toBe(0);
