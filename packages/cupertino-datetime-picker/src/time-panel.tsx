@@ -139,7 +139,9 @@ export function TimePanel({
       e.preventDefault();
       apply(step, segment);
     } else if (e.key === "Enter") {
-      e.currentTarget.blur();
+      // Commit what is typed; focus stays in the field.
+      setTyping(null);
+      e.currentTarget.select();
     } else if (e.key.length === 1) {
       // Nothing else types into a segment.
       e.preventDefault();

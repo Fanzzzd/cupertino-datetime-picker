@@ -95,10 +95,10 @@ export function Wheel({
   const resting = React.useRef(selected);
   const [motion] = React.useState(() => new WheelMotion(selected * itemHeight, bounds));
   const frame = React.useRef(0);
-  // A person moved the wheel last (a drag, a fling, a wheel or trackpad),
-  // rather than the wheel gliding to a value it was given.
-  const byHand = React.useRef(false);
-  const press = React.useRef<{ y: number; moved: boolean; stopped: boolean } | null>(null);
+  // `scale` turns pointer px into the wheel's px under CSS zoom.
+  const press = React.useRef<{ y: number; moved: boolean; stopped: boolean; scale: number } | null>(
+    null,
+  );
   const typeahead = React.useRef({ buffer: "", timer: 0 });
   // Frames and listeners call back after this render; give them the latest
   // handlers rather than the ones they closed over.
@@ -168,7 +168,6 @@ export function Wheel({
   const onWheel = (e: WheelEvent) => {
     e.preventDefault();
     if (motion.dragging) return;
-    byHand.current = true;
     const unit = e.deltaMode === 1 ? itemHeight : e.deltaMode === 2 ? visibleRows * itemHeight : 1;
     motion.wheel(e.timeStamp, e.deltaY * unit);
     run();
@@ -196,20 +195,19 @@ export function Wheel({
     const from = resting.current;
     resting.current = target;
     report(target, turn ? from : target);
-    byHand.current = false;
     motion.goTo(target, performance.now());
     run();
   };
 
   // The value changed from outside (typed into the field, or set by the app).
-  // A wheel in a person's hands finishes first; one gliding to an earlier
-  // value turns to the new one.
+  // Only a wheel held in a person's hand finishes first; a gliding one,
+  // flung or not, turns to the new value, so a time typed into the field
+  // while a wheel coasts is the one that stays.
   React.useEffect(() => {
-    if (motion.active && byHand.current) return;
+    if (motion.dragging) return;
     if (optionAt(resting.current)?.value === value) return;
     const row = loop ? nearestRow(selected, resting.current, len) : selected;
     resting.current = row;
-    byHand.current = false;
     motion.goTo(row, performance.now());
     run();
   });
@@ -238,9 +236,9 @@ export function Wheel({
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    press.current = { y: e.clientY, moved: false, stopped: motion.active };
-    byHand.current = true;
-    motion.grab(e.timeStamp, e.clientY);
+    const scale = e.currentTarget.getBoundingClientRect().height / (visibleRows * itemHeight) || 1;
+    press.current = { y: e.clientY, moved: false, stopped: motion.active, scale };
+    motion.grab(e.timeStamp, e.clientY / scale);
     run();
   };
 
@@ -248,7 +246,7 @@ export function Wheel({
     const p = press.current;
     if (!p) return;
     if (Math.abs(e.clientY - p.y) > TAP_SLOP) p.moved = true;
-    motion.drag(e.timeStamp, e.clientY);
+    motion.drag(e.timeStamp, e.clientY / p.scale);
   };
 
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -264,7 +262,9 @@ export function Wheel({
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    const r = resting.current;
+    // A key on a moving wheel steps from where it is headed, not from where
+    // it last rested.
+    const r = motion.active ? motion.targetRow : resting.current;
     const first = loop ? r - mod(r, len) : 0;
     const last = first + len - 1;
     switch (e.key) {
@@ -352,7 +352,14 @@ export function Wheel({
   const paintedRows = React.useRef<typeof rows | null>(null);
   React.useLayoutEffect(() => {
     if (paintedRows.current === rows) return;
+    const fresh = paintedRows.current !== null;
     paintedRows.current = rows;
+    // New options (a 24-hour clock turned 12-hour, say): rows mean other
+    // values now, so the wheel is placed on the value again.
+    if (fresh) {
+      resting.current = selected;
+      motion.place(selected * itemHeight);
+    }
     // React wrote the new labels where the pool first stood; label them all
     // again where the wheel stands now.
     paint(true);

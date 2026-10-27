@@ -81,3 +81,9 @@ test("addedText finds what an unseen edit inserted, wherever the caret was", () 
   expect(addedText("11", "12", [0, 2])).toBe("12");
   expect(addedText("06", "016", [1, 1])).toBe("1");
 });
+
+test("typed minutes land on the interval", () => {
+  const fives = { twelve: true, minuteInterval: 5 };
+  expect(enterText(start, "minute", "07", fives)).toMatchObject({ minutes: 5 });
+  expect(enterText(start, "minute", "59", fives)).toMatchObject({ minutes: 55 });
+});

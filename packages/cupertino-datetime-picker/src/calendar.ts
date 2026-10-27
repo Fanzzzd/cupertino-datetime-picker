@@ -77,6 +77,13 @@ export function clampDay(date: Date, min?: Date, max?: Date): Date {
   return date;
 }
 
+/** `date` moved inside [min, max] as instants. */
+export function clampTime(date: Date, min?: Date, max?: Date): Date {
+  if (min && date < min) return new Date(min);
+  if (max && date > max) return new Date(max);
+  return date;
+}
+
 /** `ym` moved inside the months of [min, max]. */
 export function clampMonth(ym: YearMonth, min?: Date, max?: Date): YearMonth {
   if (min && monthDiff(yearMonthOf(min), ym) < 0) return yearMonthOf(min);

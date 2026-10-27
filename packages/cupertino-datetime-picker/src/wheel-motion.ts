@@ -59,6 +59,15 @@ export class WheelMotion {
     return Math.round(this.pos / this.bounds.itemHeight);
   }
 
+  /** The row the wheel is headed for: where a glide or a chase will land. */
+  get targetRow() {
+    const m = this.mode;
+    const h = this.bounds.itemHeight;
+    if (m.kind === "glide") return Math.round((m.from + m.distance) / h);
+    if (m.kind === "chase") return Math.round(m.target / h);
+    return this.row;
+  }
+
   /** Moving, or held: a wheel that is active has not settled. */
   get active() {
     return this.mode.kind !== "idle";
@@ -97,6 +106,12 @@ export class WheelMotion {
       last * itemHeight,
     );
     this.mode = { kind: "chase", target, last: t, at: chasing?.at ?? t };
+  }
+
+  /** Stand at `pos` at once, with nothing in motion. */
+  place(pos: number) {
+    this.pos = pos;
+    this.mode = { kind: "idle" };
   }
 
   goTo(row: number, t: number) {

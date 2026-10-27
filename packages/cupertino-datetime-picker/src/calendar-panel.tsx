@@ -213,7 +213,10 @@ export function CalendarPanel({
   );
 
   return (
-    <div className={cn("cdp flex w-[336px] flex-col select-none", className)} data-slot="calendar">
+    <div
+      className={cn("cdp flex w-[336px] max-w-[calc(100vw-16px)] flex-col select-none", className)}
+      data-slot="calendar"
+    >
       <div className="flex h-11 items-center justify-between pr-1 pl-2.5">
         <button
           ref={title}

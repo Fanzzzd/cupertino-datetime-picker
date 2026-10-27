@@ -86,7 +86,8 @@ Typing still accepts any minute; the wheel settles on the nearest step.
 ## Range
 
 `min` and `max` disable days outside the range. Months you cannot reach are
-not offered by the arrows either.
+not offered by the arrows or the month and year wheels. Values clamp to the
+exact instants: on the last day, a time past `max` springs back to it.
 
 <RangeDemo />
 
@@ -110,7 +111,7 @@ not offered by the arrows either.
 | `locale`         | `string`                           | `navigator.language` | Names, week start, clock, pill formats.      |
 | `hourCycle`      | `"h12" \| "h23"`                   | from `locale`        | 12- or 24-hour clock.                        |
 | `minuteInterval` | `number`                           | `1`                  | Minute wheel step.                           |
-| `min` / `max`    | `Date`                             |                      | Days outside the range are disabled.         |
+| `min` / `max`    | `Date`                             |                      | Days outside are disabled; values clamp.     |
 | `disabled`       | `boolean`                          | `false`              | Disables the pills.                          |
 | `labels`         | `{ date?: string; time?: string }` | `Date` / `Time`      | Pill placeholders while there is no value.   |
 | `className`      | `string`                           |                      | On the root element.                         |

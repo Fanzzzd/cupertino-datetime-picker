@@ -4,6 +4,7 @@ import {
   addMonths,
   clampDay,
   clampMonth,
+  clampTime,
   isSameDay,
   monthGrid,
   shiftMonth,
@@ -96,4 +97,13 @@ test("yearRange reaches the value's year, or spans min to max", () => {
   const [from, to] = yearRange(2026, 2026, 100, new Date(2200, 0, 1));
   expect(from).toBe(2200);
   expect(to).toBeGreaterThanOrEqual(2200);
+});
+
+test("clampTime keeps instants inside min and max", () => {
+  const min = new Date(2026, 8, 3, 10, 15);
+  const max = new Date(2026, 8, 20, 17, 45);
+  expect(clampTime(new Date(2026, 8, 20, 18, 30), min, max)).toEqual(max);
+  expect(clampTime(new Date(2026, 8, 3, 1, 59), min, max)).toEqual(min);
+  const inside = new Date(2026, 8, 10, 12);
+  expect(clampTime(inside, min, max)).toBe(inside);
 });

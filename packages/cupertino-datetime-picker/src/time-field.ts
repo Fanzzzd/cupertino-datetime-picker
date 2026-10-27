@@ -101,7 +101,8 @@ function typeInto(step: FieldStep, digit: string, clock: FieldClock): FieldStep 
   const typed = typeDigit(buffer, digit, min, max);
   const next: FieldStep = { ...step };
   if (typed.value !== null) {
-    if (segment === "minute") next.minutes = typed.value;
+    // Minutes land on the wheel's values: with an interval of 5, "07" is 05.
+    if (segment === "minute") next.minutes = typed.value - (typed.value % clock.minuteInterval);
     else next.hours = clock.twelve ? to24(typed.value, to12(step.hours).pm) : typed.value;
   }
   if (!typed.done) return { ...next, typing: { segment, buffer: typed.buffer } };

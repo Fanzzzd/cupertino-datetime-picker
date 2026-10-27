@@ -3,7 +3,7 @@
 import { Popover } from "@base-ui/react/popover";
 import * as React from "react";
 
-import { withTime } from "./calendar";
+import { clampTime, withTime } from "./calendar";
 import { CalendarPanel } from "./calendar-panel";
 import { useBrowserLocale, useControlled } from "./hooks";
 import { formatClock, formatDay, hourCycleFor, type HourCycle } from "./time";
@@ -110,16 +110,19 @@ export const DateTimePicker = React.memo(function DateTimePicker({
     [timeLabel, locale, hourCycle],
   );
 
+  // Every value written stays within [min, max], to the minute: a time
+  // turned past a limit springs back to it, as on iOS.
+  const write = (next: Date) => setValue(clampTime(next, min, max));
   // A day picked into an empty picker keeps the time the clock shows.
   const pickDay = (day: Date) =>
-    setValue(value ? day : withTime(day, draft.getHours(), draft.getMinutes()));
+    write(value ? day : withTime(day, draft.getHours(), draft.getMinutes()));
   const calendar = (
     <CalendarPanel value={value} onChange={pickDay} locale={locale} min={min} max={max} />
   );
   const time = (
     <TimePanel
       value={draft}
-      onChange={setValue}
+      onChange={write}
       locale={locale}
       hourCycle={hourCycle}
       minuteInterval={minuteInterval}

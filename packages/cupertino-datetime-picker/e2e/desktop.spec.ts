@@ -620,3 +620,93 @@ test("right to left, the AM/PM thumb sits under the chosen period", async ({ pag
   });
   expect(Math.abs(thumb - chosen)).toBeLessThan(4);
 });
+
+test("a time typed while a released wheel coasts is the one that stays", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const minute = wheel(page, "Minute");
+  const box = (await minute.boundingBox())!;
+  const x = box.x + box.width / 2;
+  await page.mouse.move(x, box.y + box.height - 10);
+  await page.mouse.down();
+  for (let i = 1; i <= 6; i++) await page.mouse.move(x, box.y + box.height - 10 - i * 22);
+  await page.mouse.up();
+  await timePopup(page).getByRole("textbox", { name: "Minute" }).click();
+  await page.keyboard.type("15");
+  await page.waitForTimeout(1500);
+  await expect(value(page)).toHaveText("Sep 5, 2026 6:15 PM");
+  await expect(minute).toHaveAttribute("aria-valuenow", "15");
+});
+
+test("Enter in the time field commits and keeps focus there", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  const hourField = timePopup(page).getByRole("textbox", { name: "Hour" });
+  await hourField.click();
+  await page.keyboard.type("1");
+  await page.keyboard.press("Enter");
+  await expect(hourField).toBeFocused();
+  await expect(hourField).toHaveValue("01");
+});
+
+test("values clamp to min and max as instants", async ({ page }) => {
+  const max = new Date(2026, 8, 20, 17, 45).getTime();
+  await open(page, `&max=${max}`);
+  await dateTrigger(page).click();
+  await datePopup(page)
+    .getByRole("gridcell", { name: /September 20, 2026/ })
+    .click();
+  await expect(value(page)).toHaveText("Sep 20, 2026 5:45 PM");
+});
+
+test("on a 320px screen the calendar fits", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await open(page);
+  await dateTrigger(page).click();
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const box = (await datePopup(page).boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(320);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+});
+
+test("typed minutes land on the minute interval", async ({ page }) => {
+  await open(page);
+  const every5 = page.locator('[data-slot="date-time-picker"]').nth(3);
+  await every5.locator('[data-slot="time-trigger"]').click();
+  await timePopup(page).getByRole("textbox", { name: "Minute" }).click();
+  await page.keyboard.type("07");
+  await expect(every5.locator('[data-slot="time-trigger"]')).toHaveText("9:05 AM");
+  await expect(wheel(page, "Minute")).toHaveAttribute("aria-valuenow", "5");
+});
+
+test("a clock that turns 12-hour while open keeps the hour wheel on the hour", async ({ page }) => {
+  await open(page);
+  await timeTrigger(page).click();
+  await page.getByRole("combobox").selectOption("de-DE");
+  await expect(wheel(page, "Hour")).toHaveAttribute("aria-valuenow", "18");
+  await page.getByRole("combobox").selectOption("en-US");
+  const hour = wheel(page, "Hour");
+  await expect(hour).toHaveAttribute("aria-valuenow", "6");
+  await expect(hour.locator("[data-active] span")).toHaveText("6");
+});
+
+test("under CSS zoom a drag follows the pointer", async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (document.documentElement.style.zoom = "1.25"));
+  await timeTrigger(page).click();
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  const minute = wheel(page, "Minute");
+  const box = (await minute.boundingBox())!;
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const before = Number(await minute.getAttribute("data-position"));
+  // Three rows as drawn: 3 × 32px × 1.25.
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y - 120, { steps: 12 });
+  await page.waitForTimeout(200);
+  expect(Number(await minute.getAttribute("data-position")) - before).toBeCloseTo(3, 0);
+  await page.mouse.up();
+});

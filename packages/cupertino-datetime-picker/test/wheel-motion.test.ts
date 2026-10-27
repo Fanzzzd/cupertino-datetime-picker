@@ -118,3 +118,20 @@ test("a held wheel stays held", () => {
   expect(m.pos).toBe(40);
   expect(CHASE_MS).toBeGreaterThan(0);
 });
+
+test("place stands still where it is put", () => {
+  const m = new WheelMotion(0, looped);
+  m.goTo(9, 0);
+  m.place(3 * H);
+  expect(m.active).toBe(false);
+  expect(m.row).toBe(3);
+});
+
+test("targetRow is where a glide or a chase will land", () => {
+  const m = new WheelMotion(0, looped);
+  m.goTo(5, 0);
+  m.step(50);
+  expect(m.targetRow).toBe(5);
+  m.wheel(60, 4 * H);
+  expect(m.targetRow).toBe(Math.round((m.pos + 4 * H) / H));
+});
