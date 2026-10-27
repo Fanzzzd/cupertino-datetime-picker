@@ -730,3 +730,20 @@ test("with reduced motion, small trackpad deltas still turn a wheel", async ({ p
   for (let i = 0; i < 40; i++) await page.mouse.wheel(0, 8);
   await expect(minute).toHaveAttribute("aria-valuenow", "40");
 });
+
+test("page keys on a bounded month wheel stop at the limit they head for", async ({ page }) => {
+  await open(page, `&min=${ms(2026, 8, 5)}&max=${ms(2026, 9, 5)}`);
+  await dateTrigger(page).click();
+  const popup = datePopup(page);
+  await popup.getByRole("button", { name: /September 2026/ }).click();
+  const month = popup.getByRole("spinbutton", { name: "Month" });
+  await month.focus();
+  await page.keyboard.press("PageDown");
+  await expect(month).toHaveAttribute("aria-valuetext", "October");
+  await page.keyboard.press("PageDown");
+  await expect(month).toHaveAttribute("aria-valuetext", "October");
+  await page.keyboard.press("PageUp");
+  await expect(month).toHaveAttribute("aria-valuetext", "September");
+  await page.keyboard.press("End");
+  await expect(month).toHaveAttribute("aria-valuetext", "October");
+});

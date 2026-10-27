@@ -10,7 +10,7 @@ Time: moving between the hour and minute segments no longer rewrites the time (i
 
 `min` and `max` clamp written values to the instant: on the last day, a time past `max` springs back to it, and a clamp back to the current value calls no `onChange`. A controlled value outside the range no longer moves the calendar outside it, and a `min` years ahead offers a hundred years from it.
 
-Calendar: after changing month, Tab still reaches a day. The month and year wheels stop at `min` and `max`, and arrow and page keys that would cross them stop at the limit. The year wheel reaches a value's year even more than 100 years from today. A day picked into an empty picker keeps the time the clock shows, not midnight. A `min` years from today still opens on a month in range with years to pick. Names and numbers are Gregorian in every locale, so `fa-IR` titles and pills match the grid.
+Calendar: after changing month, Tab still reaches a day. The month and year wheels stop at `min` and `max` (a turn at the limit it was heading for, a jump at the nearest), and arrow and page keys that would cross them stop at the limit. The year wheel reaches a value's year even more than 100 years from today. A day picked into an empty picker keeps the time the clock shows, not midnight. A `min` years from today still opens on a month in range with years to pick. Names and numbers are Gregorian in every locale, so `fa-IR` titles and pills match the grid.
 
 `Wheel` gains `align` and `inset`, and its `onChange` receives how many rows the wheel turned as a second argument.
 

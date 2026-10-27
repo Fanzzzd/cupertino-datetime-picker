@@ -131,6 +131,14 @@ export function CalendarPanel({
     setView(clampMonth(next, min, max));
   };
   const shift = (by: number) => show(shiftMonth(view, by), by > 0 ? 1 : -1);
+  // The month wheel wraps within the year, so September turned five rows
+  // on reads February of the same year. Out of range, a turn stops at the
+  // limit it was heading for, and a jump (End, type-ahead) at the nearest.
+  const pickMonth = (month: number, rows: number) => {
+    const plain = { year: view.year, month };
+    const inRange = monthDiff(clampMonth(plain, min, max), plain) === 0;
+    show(inRange || rows === 0 ? plain : shiftMonth(view, rows), 0);
+  };
 
   const canShift = (by: number) => {
     const target = shiftMonth(view, by);
@@ -373,7 +381,7 @@ export function CalendarPanel({
             visibleRows={7}
             align="start"
             inset={8}
-            onChange={(month) => show({ year: view.year, month }, 0)}
+            onChange={pickMonth}
             className="w-36"
           />
           <Wheel
