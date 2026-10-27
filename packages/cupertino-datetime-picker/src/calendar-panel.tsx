@@ -202,7 +202,7 @@ export function CalendarPanel({
   );
 
   return (
-    <div className={cn("cdp flex w-[360px] flex-col select-none", className)} data-slot="calendar">
+    <div className={cn("cdp flex w-[336px] flex-col select-none", className)} data-slot="calendar">
       <div className="flex h-11 items-center justify-between pr-1 pl-2.5">
         <button
           ref={title}
@@ -283,7 +283,7 @@ export function CalendarPanel({
             {weekdayNames(locale, weekStart, "short").map((name, i) => (
               <div
                 key={i}
-                className="flex h-8 items-center justify-center text-[13px] font-semibold text-[var(--cdp-secondary)] uppercase"
+                className="flex h-8 items-center justify-center text-[12px] font-semibold tracking-[0.04em] text-[var(--cdp-secondary)] uppercase"
               >
                 {name}
               </div>
@@ -299,7 +299,7 @@ export function CalendarPanel({
             onKeyDown={onGridKeyDown}
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
-            className="grid grid-cols-7 gap-y-2 data-[dir=-1]:animate-[cdp-slide-from-left_240ms_cubic-bezier(0.2,0.9,0.3,1)] data-[dir=1]:animate-[cdp-slide-from-right_240ms_cubic-bezier(0.2,0.9,0.3,1)]"
+            className="grid grid-cols-7 gap-y-1.5 data-[dir=-1]:animate-[cdp-slide-from-left_240ms_cubic-bezier(0.2,0.9,0.3,1)] data-[dir=1]:animate-[cdp-slide-from-right_240ms_cubic-bezier(0.2,0.9,0.3,1)]"
             style={{ touchAction: "pan-y" }}
           >
             {rows.flat().map(({ date, inMonth }, i) => {
@@ -325,7 +325,7 @@ export function CalendarPanel({
                     if (!isSameDay(date, focusDate)) setFocusDate(date);
                   }}
                   className={cn(
-                    "mx-auto flex size-11 items-center justify-center rounded-full text-[20px] leading-none tabular-nums transition-transform duration-150 outline-none active:scale-90 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--cdp-bg)] disabled:opacity-30",
+                    "mx-auto flex size-10 items-center justify-center rounded-full text-[20px] leading-none tabular-nums transition-transform duration-150 outline-none active:scale-90 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--cdp-bg)] disabled:opacity-30",
                     selected
                       ? isToday
                         ? "bg-[var(--cdp-tint)] font-semibold text-[var(--cdp-on-tint)]"

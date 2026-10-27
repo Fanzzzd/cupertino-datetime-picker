@@ -175,7 +175,7 @@ export function TimePanel({
   // Each segment is wider than its two digits plus the (hidden) caret, so
   // the input never scrolls its text by a pixel on focus or while typing.
   const segmentClass =
-    "h-7 rounded-[6px] bg-transparent text-center text-[22px] leading-none tabular-nums text-[var(--cdp-label)] caret-transparent outline-none transition-colors duration-100 selection:bg-transparent focus:bg-[var(--cdp-tint-fill)] focus:text-[var(--cdp-tint)]";
+    "h-7 rounded-full bg-transparent text-center text-[22px] leading-none tabular-nums text-[var(--cdp-label)] caret-transparent outline-none transition-colors duration-100 selection:bg-transparent focus:bg-[var(--cdp-tint-fill)] focus:text-[var(--cdp-tint)]";
   const segmentWidth = "calc(2ch + 14px)";
 
   // Stable between renders, so the wheels keep their rows.
@@ -212,7 +212,7 @@ export function TimePanel({
         <div
           role="group"
           aria-label={labels.time}
-          className="flex h-9 items-center rounded-lg border border-[var(--cdp-border)] bg-[var(--cdp-bg)] px-1 shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-[border-color,box-shadow] duration-150 focus-within:border-[var(--cdp-tint)] focus-within:ring-[3px] focus-within:ring-[var(--cdp-tint-ring)]"
+          className="flex h-9 items-center rounded-full bg-[var(--cdp-fill)] px-1 transition-shadow duration-150 focus-within:ring-[3px] focus-within:ring-[var(--cdp-tint-ring)]"
           data-slot="time-field"
         >
           <input
@@ -231,7 +231,7 @@ export function TimePanel({
             data-segment="hour"
           />
           <span
-            className="-translate-y-px text-[22px] leading-none text-[var(--cdp-secondary)]"
+            className="-mx-px -translate-y-px text-[22px] leading-none text-[var(--cdp-secondary)]"
             aria-hidden
           >
             :
@@ -275,7 +275,7 @@ export function TimePanel({
             options={hourOptions}
             value={hourShown}
             loop
-            visibleRows={7}
+            visibleRows={5}
             align="end"
             inset={twelve ? 22 : 24}
             onChange={turnHour}
@@ -286,7 +286,7 @@ export function TimePanel({
             options={minuteOptions}
             value={minutes - (minutes % minuteInterval)}
             loop
-            visibleRows={7}
+            visibleRows={5}
             align="start"
             inset={twelve ? 23 : 25}
             onChange={setMinute}
@@ -297,7 +297,7 @@ export function TimePanel({
               aria-label={labels.dayPeriod}
               options={periodOptions}
               value={pm ? 1 : 0}
-              visibleRows={7}
+              visibleRows={5}
               align="start"
               inset={9}
               onChange={(v) => setPm(v === 1)}

@@ -36,9 +36,6 @@ export type WheelProps = {
   className?: string;
 };
 
-/** Degrees of drum per row: rows sit on a cylinder, as on the iOS picker. */
-const ROW_DEGREES = 22;
-
 /** The band behind the centre row is a little taller than a row, like iOS's. */
 export const BAND_EXTRA = 2;
 
@@ -84,8 +81,11 @@ export function Wheel({
     options.findIndex((o) => o.value === value),
   );
   const pad = ((visibleRows - 1) / 2) * itemHeight;
-  // The drum's radius, so that one row of arc is one row of scroll.
-  const radius = itemHeight / ((ROW_DEGREES * Math.PI) / 180);
+  // Rows sit on a drum that fills the wheel: its edge, where rows turn away
+  // to nothing, is the wheel's edge, so no band of the wheel stays empty.
+  // One row of arc is one row of scroll.
+  const radius = (visibleRows * itemHeight) / 2 - 4;
+  const rowDegrees = ((itemHeight / radius) * 180) / Math.PI;
 
   // Physical row the wheel rests on; the value is `options[resting % len]`.
   const resting = React.useRef(base + selected);
@@ -142,7 +142,7 @@ export function Wheel({
       // snaps to where a transformed row is drawn.
       const label = row.firstElementChild as HTMLElement | null;
       const offset = i - centre;
-      const angle = clamp(offset * ROW_DEGREES, -90, 90);
+      const angle = clamp(offset * rowDegrees, -90, 90);
       const rad = (angle * Math.PI) / 180;
       const shift = radius * Math.sin(rad) - offset * itemHeight;
       if (label) {
@@ -311,7 +311,7 @@ export function Wheel({
       const box = el.getBoundingClientRect();
       const fromMiddle = clamp((e.clientY - box.top - box.height / 2) / radius, -1, 1);
       const half = Math.floor(visibleRows / 2);
-      const turn = clamp((Math.asin(fromMiddle) * 180) / Math.PI / ROW_DEGREES, -half, half);
+      const turn = clamp((Math.asin(fromMiddle) * 180) / Math.PI / rowDegrees, -half, half);
       go(Math.round(el.scrollTop / itemHeight + turn));
       clickHandled.current = true;
       return;
@@ -406,7 +406,7 @@ export function Wheel({
           role="presentation"
           data-index={i}
           className={cn(
-            "flex snap-center items-center text-[23px] leading-none text-[var(--cdp-secondary)] tabular-nums data-active:text-[var(--cdp-label)]",
+            "flex snap-center items-center text-[22px] leading-none text-[var(--cdp-secondary)] tabular-nums data-active:text-[var(--cdp-label)]",
             align === "start"
               ? "justify-start"
               : align === "end"

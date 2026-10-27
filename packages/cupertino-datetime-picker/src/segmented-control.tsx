@@ -35,15 +35,15 @@ export function SegmentedControl<T extends string | number | boolean>({
       aria-label={ariaLabel}
       data-slot="segmented-control"
       className={cn(
-        "relative inline-grid h-8 auto-cols-fr grid-flow-col rounded-[9px] bg-[var(--cdp-fill)] p-0.5",
+        "relative inline-grid h-9 auto-cols-fr grid-flow-col rounded-full bg-[var(--cdp-fill)] p-[3px]",
         className,
       )}
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0.5 left-0.5 rounded-[7px] bg-[var(--cdp-thumb)] shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)] transition-transform duration-200 ease-[cubic-bezier(0.2,0,0,1)]"
+        className="pointer-events-none absolute inset-y-[3px] left-[3px] rounded-full bg-[var(--cdp-thumb)] shadow-[0_3px_8px_rgba(0,0,0,0.12),0_3px_1px_rgba(0,0,0,0.04)] transition-transform duration-200 ease-[cubic-bezier(0.2,0,0,1)]"
         style={{
-          width: `calc((100% - 4px) / ${options.length})`,
+          width: `calc((100% - 6px) / ${options.length})`,
           transform: `translateX(${index * 100}%)`,
         }}
       />
@@ -53,7 +53,7 @@ export function SegmentedControl<T extends string | number | boolean>({
           <label
             key={String(option.value)}
             className={cn(
-              "relative z-10 flex min-w-12 cursor-pointer items-center justify-center rounded-[7px] px-3 text-[13px] font-semibold transition-colors select-none has-focus-visible:ring-2 has-focus-visible:ring-[var(--cdp-tint)]",
+              "relative z-10 flex min-w-12 cursor-pointer items-center justify-center rounded-full px-3 text-[13px] font-semibold transition-colors select-none has-focus-visible:ring-2 has-focus-visible:ring-[var(--cdp-tint)]",
               checked ? "text-[var(--cdp-label)]" : "text-[var(--cdp-label)]/80 active:opacity-60",
             )}
           >

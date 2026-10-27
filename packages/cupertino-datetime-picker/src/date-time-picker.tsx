@@ -33,7 +33,7 @@ export const pillClass =
   "inline-flex h-9 shrink-0 items-center rounded-full bg-[var(--cdp-fill)] px-3 text-[17px] leading-none whitespace-nowrap text-[var(--cdp-label)] tabular-nums transition-[background-color,color] outline-none hover:bg-[var(--cdp-fill-hover)] focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] active:opacity-60 disabled:opacity-40 data-popup-open:text-[var(--cdp-tint)]";
 
 export const popupClass =
-  "cdp origin-(--transform-origin) rounded-[13px] bg-[var(--cdp-bg)] shadow-[var(--cdp-shadow)] outline-none data-open:animate-[cdp-pop-in_260ms_cubic-bezier(0.18,0.9,0.32,1.15)] data-closed:animate-[cdp-pop-out_140ms_ease-in]";
+  "cdp origin-(--transform-origin) rounded-2xl bg-[var(--cdp-bg)] shadow-[var(--cdp-shadow)] outline-none data-open:animate-[cdp-pop-in_260ms_cubic-bezier(0.18,0.9,0.32,1.15)] data-closed:animate-[cdp-pop-out_140ms_ease-in]";
 
 /**
  * Pill text sized to the widest text the pill can show, so the pill keeps its
@@ -144,7 +144,7 @@ export const DateTimePicker = React.memo(function DateTimePicker({
     return (
       <div
         className={cn(
-          "cdp inline-flex flex-col items-stretch rounded-[13px] bg-[var(--cdp-bg)]",
+          "cdp inline-flex flex-col items-stretch rounded-2xl bg-[var(--cdp-bg)]",
           className,
         )}
         data-slot="date-time-picker"
