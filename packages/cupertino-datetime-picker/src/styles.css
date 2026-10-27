@@ -54,6 +54,12 @@
 }
 
 /* A wheel's snap stops, written as plain HTML. */
+.cdp-stops {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+}
+
 .cdp-stop {
   scroll-snap-align: center;
 }

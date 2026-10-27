@@ -47,6 +47,7 @@ const ROAD_ROWS = 500;
 // Rows on the page beyond the visible ones: only a pool of row elements
 // exists, moved along under the scroll position.
 const SPARE_ROWS = 8;
+const STOP_BLOCK = 16;
 const TYPEAHEAD_MS = 700;
 
 type Drag = {
@@ -414,13 +415,20 @@ export function Wheel({
 
   // Where the wheel can stop: one empty row per physical row. They never
   // move, because WebKit and Chrome re-snap when a snap target moves.
-  // Plain HTML, parsed by the browser rather than built by React.
-  const stops = React.useMemo(
-    () => ({
-      __html: `<div class="cdp-stop" style="height:${itemHeight}px"></div>`.repeat(total),
-    }),
-    [total, itemHeight],
-  );
+  // Plain HTML, parsed by the browser rather than built by React. Stops come
+  // in placed blocks: stacked all the way, a zoomed page rounds every row's
+  // height and a thousand rows drift several pixels off the labels; placed
+  // one by one, WebKit slows to a crawl.
+  const stops = React.useMemo(() => {
+    let html = "";
+    for (let i = 0; i < total; i += STOP_BLOCK) {
+      const n = Math.min(STOP_BLOCK, total - i);
+      html += `<div class="cdp-stops" style="top:${pad + i * itemHeight}px">`;
+      html += `<div class="cdp-stop" style="height:${itemHeight}px"></div>`.repeat(n);
+      html += "</div>";
+    }
+    return { __html: html };
+  }, [total, pad, itemHeight]);
 
   // The labels, a pool rebuilt only when the options change, so a new value re-renders
   // the wheel and not its rows. It is first drawn around the resting row;
@@ -496,7 +504,12 @@ export function Wheel({
         )}
         style={{ height: visibleRows * itemHeight, scrollbarWidth: "none", touchAction: "pan-y" }}
       >
-        <div aria-hidden className="relative" style={{ paddingBlock: pad }} onClick={onRowClick}>
+        <div
+          aria-hidden
+          className="relative"
+          style={{ height: total * itemHeight + 2 * pad }}
+          onClick={onRowClick}
+        >
           <div ref={pool} className="absolute inset-x-0 top-0">
             {rows}
           </div>

@@ -487,11 +487,10 @@ test("a long trackpad flick on a looped wheel never reaches the end of its rows"
   // A macOS trackpad flick: the fingers' strokes, then momentum events that
   // decay over a second or more, about 5000px in all (150 rows).
   for (const sign of [1, -1]) {
-    let delta = 120;
+    let delta = 400;
     while (delta > 1) {
       await page.mouse.wheel(0, sign * delta);
-      await page.waitForTimeout(8);
-      delta *= 0.97;
+      delta *= 0.9;
     }
     await page.waitForTimeout(600);
   }
@@ -510,4 +509,24 @@ test("a long trackpad flick on a looped wheel never reaches the end of its rows"
   await expect(field).toHaveValue(
     String(await minute.getAttribute("aria-valuenow")).padStart(2, "0"),
   );
+});
+
+test("on a zoomed page the centre row still sits in the band", async ({ page }) => {
+  await open(page);
+  // Browser zoom rounds every row's height; CSS zoom does the same.
+  await page.evaluate(() => (document.documentElement.style.zoom = "0.76"));
+  await timeTrigger(page).click();
+  await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
+  for (const name of ["Hour", "Minute"]) {
+    const w = wheel(page, name);
+    await w.focus();
+    for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowDown");
+    await page.waitForTimeout(500);
+    const off = await w.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const label = el.querySelector("[data-active] span")!.getBoundingClientRect();
+      return label.top + label.height / 2 - (box.top + box.height / 2);
+    });
+    expect(Math.abs(off)).toBeLessThan(1);
+  }
 });
