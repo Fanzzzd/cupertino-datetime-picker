@@ -142,27 +142,50 @@ export function TimePanel({
   // An engine that skipped `beforeinput` still changes the input: whatever
   // was added to the shown text is what was typed.
   const onInput = (segment: Segment) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const added = e.target.value.replace(shownText(segment), "");
-    for (const ch of added) if (/\d/.test(ch)) typeInto(segment, ch);
+    const prev = shownText(segment);
+    const next = e.target.value;
+    // The caret can sit anywhere, so "06" can become "016": what is new lies
+    // between the unchanged start and the unchanged end.
+    let start = 0;
+    while (start < prev.length && prev[start] === next[start]) start++;
+    let end = 0;
+    while (end < prev.length - start && prev.at(-1 - end) === next.at(-1 - end)) end++;
+    for (const ch of next.slice(start, next.length - end)) if (/\d/.test(ch)) typeInto(segment, ch);
   };
 
   const shownText = (segment: Segment) => {
     if (typing?.segment === segment) return typing.buffer;
-    if (segment === "hour") return twelve ? String(hourShown) : pad2(hourShown);
-    return pad2(minutes);
+    // Two digits on either clock, like the iOS field: 09:30, not 9:30.
+    return pad2(segment === "hour" ? hourShown : minutes);
   };
 
   const segmentClass =
     "box-content h-10 rounded-md bg-transparent px-1 text-center text-[32px] leading-none font-light tabular-nums text-[var(--cdp-label)] caret-transparent outline-none selection:bg-transparent focus:bg-[var(--cdp-tint-fill)] focus:text-[var(--cdp-tint)]";
 
-  const hourOptions = Array.from({ length: hourMax - hourMin + 1 }, (_, i) => {
-    const h = hourMin + i;
-    return { value: h, label: twelve ? String(h) : pad2(h) };
-  });
-  const minuteOptions = Array.from({ length: Math.ceil(60 / minuteInterval) }, (_, i) => ({
-    value: i * minuteInterval,
-    label: pad2(i * minuteInterval),
-  }));
+  // Stable between renders, so the wheels keep their rows.
+  const hourOptions = React.useMemo(
+    () =>
+      Array.from({ length: twelve ? 12 : 24 }, (_, i) => {
+        const h = (twelve ? 1 : 0) + i;
+        return { value: h, label: twelve ? String(h) : pad2(h) };
+      }),
+    [twelve],
+  );
+  const minuteOptions = React.useMemo(
+    () =>
+      Array.from({ length: Math.ceil(60 / minuteInterval) }, (_, i) => ({
+        value: i * minuteInterval,
+        label: pad2(i * minuteInterval),
+      })),
+    [minuteInterval],
+  );
+  const periodOptions = React.useMemo(
+    () => [
+      { value: 0, label: periods.am },
+      { value: 1, label: periods.pm },
+    ],
+    [periods.am, periods.pm],
+  );
 
   return (
     <div
@@ -187,8 +210,10 @@ export function TimePanel({
             onKeyDown={onSegmentKeyDown("hour")}
             onFocus={(e) => e.currentTarget.select()}
             onBlur={() => setTyping(null)}
-            className={segmentClass}
-            style={{ width: `${Math.max(1, shownText("hour").length || 1)}ch` }}
+            // A two-digit slot with a half-typed hour against the colon, so
+            // the colon and the minutes never move.
+            className={cn(segmentClass, "text-right")}
+            style={{ width: "2ch" }}
             data-segment="hour"
           />
           <span
@@ -248,10 +273,7 @@ export function TimePanel({
           {twelve && (
             <Wheel
               aria-label={labels.dayPeriod}
-              options={[
-                { value: 0, label: periods.am },
-                { value: 1, label: periods.pm },
-              ]}
+              options={periodOptions}
               value={pm ? 1 : 0}
               onChange={(v) => setPm(v === 1)}
               className="w-16"

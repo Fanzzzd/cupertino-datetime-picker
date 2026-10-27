@@ -317,6 +317,35 @@ export function Wheel({
     e.preventDefault();
   };
 
+  // A click on a row (delegated, so the rows below stay the same elements
+  // from render to render).
+  const onRowClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (clickHandled.current) {
+      clickHandled.current = false;
+      return;
+    }
+    const row = (e.target as HTMLElement).closest<HTMLElement>("[data-index]");
+    if (row) go(Number(row.dataset.index));
+  };
+
+  // Hundreds of rows on a looped wheel; rebuilt only when the options change,
+  // so a new value re-renders the wheel and not every row in it.
+  const rows = React.useMemo(
+    () =>
+      Array.from({ length: len * copies }, (_, i) => (
+        <div
+          key={i}
+          role="presentation"
+          data-index={i}
+          className="flex snap-center items-center justify-center text-[22px] leading-none text-[var(--cdp-secondary)] tabular-nums transition-colors data-active:text-[var(--cdp-label)]"
+          style={{ height: itemHeight }}
+        >
+          {options.at(i % len)?.label}
+        </div>
+      )),
+    [options, len, copies, itemHeight],
+  );
+
   const current = options.at(selected);
 
   return (
@@ -344,27 +373,8 @@ export function Wheel({
       )}
       style={{ height: visibleRows * itemHeight, scrollbarWidth: "none", touchAction: "pan-y" }}
     >
-      <div aria-hidden style={{ paddingBlock: pad }}>
-        {Array.from({ length: len * copies }, (_, i) => {
-          const option = options.at(i % len);
-          return (
-            <div
-              key={i}
-              role="presentation"
-              className="flex snap-center items-center justify-center text-[22px] leading-none text-[var(--cdp-secondary)] tabular-nums transition-colors data-active:text-[var(--cdp-label)]"
-              style={{ height: itemHeight }}
-              onClick={() => {
-                if (clickHandled.current) {
-                  clickHandled.current = false;
-                  return;
-                }
-                go(i);
-              }}
-            >
-              {option?.label}
-            </div>
-          );
-        })}
+      <div aria-hidden style={{ paddingBlock: pad }} onClick={onRowClick}>
+        {rows}
       </div>
     </div>
   );

@@ -48,6 +48,29 @@ test("month navigation, and the title opens month/year wheels", async ({ page })
   await expect(popup.getByRole("grid")).toHaveAccessibleName("September 2030");
 });
 
+test("the month/year wheels keep the panel's height and close with Done", async ({ page }) => {
+  await open(page);
+  await dateTrigger(page).click();
+  const popup = datePopup(page);
+  const calendar = popup.locator('[data-slot="calendar"]');
+  // September 2026 needs five rows; August 2026 needs six.
+  await popup.getByRole("button", { name: /September 2026/ }).click();
+  const height = (await calendar.boundingBox())?.height;
+  const month = popup.getByRole("spinbutton", { name: "Month" });
+  await month.focus();
+  await page.keyboard.press("ArrowUp");
+  await expect(month).toHaveAttribute("aria-valuetext", "August");
+  await expect(popup.getByRole("button", { name: /August 2026/ })).toBeVisible();
+  expect((await calendar.boundingBox())?.height).toBe(height);
+
+  await popup.getByRole("button", { name: "Done" }).click();
+  await expect(popup.getByRole("button", { name: /August 2026/ })).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  await expect(popup.getByRole("grid")).toHaveAccessibleName("August 2026");
+});
+
 test("the keyboard walks the grid across months", async ({ page }) => {
   await open(page);
   await dateTrigger(page).click();
@@ -114,7 +137,9 @@ test("the wheels move the field: keyboard, mouse wheel, drag, click", async ({ p
     .poll(async () => Number(await hour.getAttribute("aria-valuenow")))
     .toBeGreaterThan(6);
   const afterWheel = await hour.getAttribute("aria-valuenow");
-  await expect(popup.getByRole("textbox", { name: "Hour" })).toHaveValue(String(afterWheel));
+  await expect(popup.getByRole("textbox", { name: "Hour" })).toHaveValue(
+    String(afterWheel).padStart(2, "0"),
+  );
 
   // Click the row above the centre.
   const period = wheel(page, "Day period");
@@ -182,7 +207,9 @@ test("the segmented control and 24-hour locales", async ({ page }) => {
   await expect(timePopup(page).getByRole("textbox", { name: "Hour" })).toHaveValue("07");
 });
 
-test("the pills keep their width and place as the value's text grows", async ({ page }) => {
+test("the pills and the typed minutes keep their place as the value's text grows", async ({
+  page,
+}) => {
   await open(page);
   // Page coordinates: WebKit can scroll the page when a popover opens.
   const place = async (locator: Locator) => {
@@ -194,12 +221,14 @@ test("the pills keep their width and place as the value's text grows", async ({ 
     date: await place(dateTrigger(page)),
     time: await place(timeTrigger(page)),
     popup: await place(timePopup(page)),
+    minute: await place(timePopup(page).getByRole("textbox", { name: "Minute" })),
   });
   await timeTrigger(page).click();
   await timePopup(page).getByRole("radio", { name: "AM" }).click();
   await timePopup(page).getByRole("textbox", { name: "Hour" }).click();
   await page.keyboard.type("9");
   await expect(timeTrigger(page)).toHaveText("9:30 AM");
+  await expect(timePopup(page).getByRole("textbox", { name: "Hour" })).toHaveValue("09");
   const before = await box();
   await timePopup(page).getByRole("textbox", { name: "Hour" }).click();
   await page.keyboard.type("10");

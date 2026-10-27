@@ -4,8 +4,22 @@
  */
 export type HourCycle = "h12" | "h23";
 
+// Building an `Intl.DateTimeFormat` costs far more than formatting with one,
+// and every render formats dozens of dates; keep one per locale and options.
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function formatter(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let f = formatters.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat(locale, options);
+    formatters.set(key, f);
+  }
+  return f;
+}
+
 export function hourCycleFor(locale: string): HourCycle {
-  const cycle = new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions().hourCycle;
+  const cycle = formatter(locale, { hour: "numeric" }).resolvedOptions().hourCycle;
   return cycle === "h11" || cycle === "h12" ? "h12" : "h23";
 }
 
@@ -18,7 +32,7 @@ export function to24(hour12: number, pm: boolean): number {
 }
 
 export function dayPeriodLabels(locale: string): { am: string; pm: string } {
-  const f = new Intl.DateTimeFormat(locale, { hour: "numeric", hourCycle: "h12" });
+  const f = formatter(locale, { hour: "numeric", hourCycle: "h12" });
   const label = (hour: number) =>
     f.formatToParts(new Date(2000, 0, 1, hour)).find((p) => p.type === "dayPeriod")?.value ??
     (hour < 12 ? "AM" : "PM");
@@ -26,7 +40,7 @@ export function dayPeriodLabels(locale: string): { am: string; pm: string } {
 }
 
 export function monthNames(locale: string, style: "long" | "short" = "long"): string[] {
-  const f = new Intl.DateTimeFormat(locale, { month: style });
+  const f = formatter(locale, { month: style });
   return Array.from({ length: 12 }, (_, m) => f.format(new Date(2000, m, 1)));
 }
 
@@ -36,7 +50,7 @@ export function weekdayNames(
   weekStart: number,
   style: "narrow" | "short" = "narrow",
 ): string[] {
-  const f = new Intl.DateTimeFormat(locale, { weekday: style });
+  const f = formatter(locale, { weekday: style });
   // 2023-01-01 is a Sunday.
   return Array.from({ length: 7 }, (_, i) =>
     f.format(new Date(2023, 0, 1 + ((weekStart + i) % 7))),
@@ -45,12 +59,12 @@ export function weekdayNames(
 
 /** The locale's medium date, as the iOS pill shows it: "Sep 5, 2026", "05.09.2026", "2026年9月5日". */
 export function formatDay(date: Date, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
+  return formatter(locale, { dateStyle: "medium" }).format(date);
 }
 
 /** "6:30 PM" on a 12-hour clock, "06:30" on a 24-hour one. */
 export function formatClock(date: Date, locale: string, hourCycle: HourCycle): string {
-  return new Intl.DateTimeFormat(locale, {
+  return formatter(locale, {
     hour: hourCycle === "h12" ? "numeric" : "2-digit",
     minute: "2-digit",
     hourCycle,
@@ -58,11 +72,11 @@ export function formatClock(date: Date, locale: string, hourCycle: HourCycle): s
 }
 
 export function formatMonthYear(date: Date, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(date);
+  return formatter(locale, { month: "long", year: "numeric" }).format(date);
 }
 
 export function formatFullDate(date: Date, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
+  return formatter(locale, {
     weekday: "long",
     year: "numeric",
     month: "long",

@@ -87,10 +87,21 @@ export function monthGrid(year: number, month: number, weekStart: number): DayCe
 
 /** First day of the week for a locale, 0 = Sunday … 6 = Saturday. */
 export function weekStartFor(locale: string): number {
-  const firstDay = readFirstDay(locale);
-  if (firstDay !== undefined) return firstDay % 7;
-  return /^(en-(US|CA|AU)|ja|ko|zh-(TW|HK)|he|pt-BR|es-(MX|US))\b/i.test(locale) ? 0 : 1;
+  let start = weekStarts.get(locale);
+  if (start === undefined) {
+    const firstDay = readFirstDay(locale);
+    start =
+      firstDay !== undefined
+        ? firstDay % 7
+        : /^(en-(US|CA|AU)|ja|ko|zh-(TW|HK)|he|pt-BR|es-(MX|US))\b/i.test(locale)
+          ? 0
+          : 1;
+    weekStarts.set(locale, start);
+  }
+  return start;
 }
+
+const weekStarts = new Map<string, number>();
 
 /**
  * `Intl.Locale#getWeekInfo` (or the older `weekInfo` getter) where the engine

@@ -25,6 +25,8 @@ export type CalendarPanelLabels = {
   nextMonth: string;
   month: string;
   year: string;
+  /** Closes the month/year wheels. */
+  done: string;
 };
 
 export const CALENDAR_LABELS: CalendarPanelLabels = {
@@ -32,6 +34,7 @@ export const CALENDAR_LABELS: CalendarPanelLabels = {
   nextMonth: "Next month",
   month: "Month",
   year: "Year",
+  done: "Done",
 };
 
 export type CalendarPanelProps = {
@@ -86,6 +89,10 @@ export function CalendarPanel({
   const [view, setView] = React.useState<YearMonth>(() => yearMonthOf(value ?? today));
   const [dir, setDir] = React.useState<-1 | 0 | 1>(0);
   const [picking, setPicking] = React.useState(false);
+  // While the wheels are up the body keeps the height the day grid had, so
+  // scrolling to a month that needs one more row does not grow the panel.
+  const [pickingHeight, setPickingHeight] = React.useState<number>();
+  const days = React.useRef<HTMLDivElement>(null);
   const [focusDate, setFocusDate] = React.useState<Date>(value ?? today);
   const wantFocus = React.useRef(false);
   const grid = React.useRef<HTMLDivElement>(null);
@@ -101,6 +108,11 @@ export function CalendarPanel({
       setFocusDate(value);
     }
   }
+
+  const togglePicking = () => {
+    if (!picking) setPickingHeight(days.current?.offsetHeight);
+    setPicking(!picking);
+  };
 
   const show = (next: YearMonth, direction: -1 | 0 | 1) => {
     setDir(direction);
@@ -170,11 +182,20 @@ export function CalendarPanel({
 
   const rows = monthGrid(view.year, view.month, weekStart);
   const viewDate = new Date(view.year, view.month, 1);
-  const months = monthNames(locale).map((label, month) => ({ value: month, label }));
-  const years = Array.from({ length: YEAR_SPAN * 2 + 1 }, (_, i) => {
-    const year = today.getFullYear() - YEAR_SPAN + i;
-    return { value: year, label: String(year) };
-  });
+  // Stable between renders, so the wheels keep their rows.
+  const months = React.useMemo(
+    () => monthNames(locale).map((label, month) => ({ value: month, label })),
+    [locale],
+  );
+  const thisYear = today.getFullYear();
+  const years = React.useMemo(
+    () =>
+      Array.from({ length: YEAR_SPAN * 2 + 1 }, (_, i) => {
+        const year = thisYear - YEAR_SPAN + i;
+        return { value: year, label: String(year) };
+      }),
+    [thisYear],
+  );
 
   return (
     <div className={cn("cdp flex w-[312px] flex-col select-none", className)} data-slot="calendar">
@@ -182,7 +203,7 @@ export function CalendarPanel({
         <button
           type="button"
           aria-expanded={picking}
-          onClick={() => setPicking((p) => !p)}
+          onClick={togglePicking}
           className="flex h-9 items-center gap-1 rounded-lg px-1.5 text-[17px] font-semibold tracking-[-0.01em] text-[var(--cdp-label)] transition-opacity outline-none active:opacity-50 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]"
         >
           <span>{formatMonthYear(viewDate, locale)}</span>
@@ -193,36 +214,55 @@ export function CalendarPanel({
             )}
           />
         </button>
-        <div
-          className={cn(
-            "flex items-center transition-opacity duration-150",
-            picking && "pointer-events-none opacity-0",
-          )}
-        >
+        <div className="grid">
           <button
             type="button"
-            aria-label={labels.previousMonth}
-            disabled={!canShift(-1)}
-            onClick={() => shift(-1)}
-            className="flex size-11 items-center justify-center rounded-full text-[var(--cdp-tint)] transition-opacity outline-none active:opacity-40 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]"
+            tabIndex={picking ? 0 : -1}
+            aria-hidden={!picking}
+            onClick={togglePicking}
+            className={cn(
+              "col-start-1 row-start-1 h-9 self-center justify-self-end rounded-lg px-2 text-[17px] font-semibold text-[var(--cdp-tint)] transition-opacity duration-150 outline-none active:opacity-50 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]",
+              !picking && "pointer-events-none opacity-0",
+            )}
           >
-            <Chevron className="rotate-180" />
+            {labels.done}
           </button>
-          <button
-            type="button"
-            aria-label={labels.nextMonth}
-            disabled={!canShift(1)}
-            onClick={() => shift(1)}
-            className="flex size-11 items-center justify-center rounded-full text-[var(--cdp-tint)] transition-opacity outline-none active:opacity-40 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]"
+          <div
+            className={cn(
+              "col-start-1 row-start-1 flex items-center transition-opacity duration-150",
+              picking && "pointer-events-none opacity-0",
+            )}
+            aria-hidden={picking}
           >
-            <Chevron />
-          </button>
+            <button
+              type="button"
+              aria-label={labels.previousMonth}
+              disabled={!canShift(-1)}
+              onClick={() => shift(-1)}
+              className="flex size-11 items-center justify-center rounded-full text-[var(--cdp-tint)] transition-opacity outline-none active:opacity-40 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]"
+            >
+              <Chevron className="rotate-180" />
+            </button>
+            <button
+              type="button"
+              aria-label={labels.nextMonth}
+              disabled={!canShift(1)}
+              onClick={() => shift(1)}
+              className="flex size-11 items-center justify-center rounded-full text-[var(--cdp-tint)] transition-opacity outline-none active:opacity-40 disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)]"
+            >
+              <Chevron />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="relative grid px-1.5 pb-1.5">
+      <div
+        className={cn("relative grid px-1.5 pb-1.5", picking && "overflow-hidden")}
+        style={{ gridTemplateRows: picking && pickingHeight ? `${pickingHeight}px` : undefined }}
+      >
         {/* Day grid and the month/year wheels share the cell; one fades out as the other fades in. */}
         <div
+          ref={days}
           className={cn(
             "col-start-1 row-start-1 transition-[opacity,transform] duration-200",
             picking && "pointer-events-none scale-95 opacity-0",
