@@ -1,5 +1,11 @@
 # cupertino-datetime-picker
 
+## 0.1.4
+
+### Patch Changes
+
+- [`cea12a2`](https://github.com/Fanzzzd/cupertino-datetime-picker/commit/cea12a2312d7b137e1decf94476804d46c75b3cb) Thanks [@Fanzzzd](https://github.com/Fanzzzd)! - `tailwind-merge` moves to `^3.7.0`. An empty picker reads the clock once when it mounts, so the time a picked day keeps matches the time panel.
+
 ## 0.1.3
 
 ### Patch Changes
