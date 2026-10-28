@@ -234,7 +234,7 @@ export function CalendarPanel({
           onClick={togglePicking}
           className="flex h-9 items-center gap-1 rounded-lg px-1.5 text-[17px] font-semibold tracking-[-0.01em] text-[var(--cdp-label)] transition-[opacity,color] outline-none active:opacity-50 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] aria-expanded:text-[var(--cdp-tint)]"
         >
-          <span>{formatMonthYear(viewDate, locale)}</span>
+          <span className="whitespace-nowrap">{formatMonthYear(viewDate, locale)}</span>
           <Chevron
             className={cn(
               "size-4 text-[var(--cdp-tint)] transition-transform duration-200",
@@ -290,7 +290,7 @@ export function CalendarPanel({
       </div>
 
       <div
-        className={cn("relative grid px-1.5 pb-1.5", picking && "overflow-hidden")}
+        className={cn("relative grid grid-cols-1 px-1.5 pb-1.5", picking && "overflow-hidden")}
         style={{ gridTemplateRows: picking && pickingHeight ? `${pickingHeight}px` : undefined }}
       >
         {/* Day grid and the month/year wheels share the cell; one fades out as the other fades in. */}
@@ -348,7 +348,7 @@ export function CalendarPanel({
                     if (!isSameDay(date, focusDate)) setFocusDate(date);
                   }}
                   className={cn(
-                    "mx-auto flex size-10 items-center justify-center rounded-full text-[20px] leading-none tabular-nums transition-transform duration-150 outline-none active:scale-90 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--cdp-bg)] disabled:opacity-30",
+                    "mx-auto flex aspect-square w-full max-w-10 items-center justify-center rounded-full text-[20px] leading-none tabular-nums transition-transform duration-150 outline-none active:scale-90 focus-visible:ring-2 focus-visible:ring-[var(--cdp-tint)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--cdp-bg)] disabled:opacity-30",
                     selected
                       ? isToday
                         ? "bg-[var(--cdp-tint)] font-semibold text-[var(--cdp-on-tint)]"

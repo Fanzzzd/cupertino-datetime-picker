@@ -127,11 +127,22 @@ export const DateTimePicker = React.memo(function DateTimePicker({
   // A day picked into an empty picker keeps the time the clock shows.
   const pickDay = (day: Date) =>
     write(value ? day : withTime(day, draft.getHours(), draft.getMinutes()));
+  // Laid out in place, a panel narrows to fit its container; in a popover it
+  // keeps to the screen.
+  const inline = display === "inline";
   const calendar = (
-    <CalendarPanel value={value} onChange={pickDay} locale={locale} min={min} max={max} />
+    <CalendarPanel
+      value={value}
+      onChange={pickDay}
+      locale={locale}
+      min={min}
+      max={max}
+      className={inline ? "max-w-full" : undefined}
+    />
   );
   const time = (
     <TimePanel
+      className={inline && !showDate ? "max-w-full" : undefined}
       value={draft}
       onChange={write}
       locale={locale}
@@ -158,11 +169,11 @@ export const DateTimePicker = React.memo(function DateTimePicker({
     </Popover.Root>
   );
 
-  if (display === "inline") {
+  if (inline) {
     return (
       <div
         className={cn(
-          "cdp inline-flex flex-col items-stretch rounded-2xl bg-[var(--cdp-bg)]",
+          "cdp inline-flex max-w-full flex-col items-stretch rounded-2xl bg-[var(--cdp-bg)]",
           disabled && "opacity-50",
           className,
         )}

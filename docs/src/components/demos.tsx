@@ -18,7 +18,7 @@ import * as React from "react";
  */
 export function Preview({ children }: { children: React.ReactNode }) {
   return (
-    <div className="not-prose my-6 flex min-h-32 flex-wrap items-center justify-center gap-6 rounded-xl border border-fd-border bg-fd-card p-6 sm:p-8">
+    <div className="not-prose my-6 flex min-h-32 flex-wrap items-center justify-center gap-6 rounded-xl border border-fd-border bg-fd-card p-3 sm:p-8">
       <ClientOnly fallback={<div className="h-[34px]" aria-hidden />}>{children}</ClientOnly>
     </div>
   );
@@ -43,7 +43,7 @@ function Readout({ value }: { value: Date | null }) {
 }
 
 const panelClass =
-  "cdp overflow-hidden rounded-[13px] bg-[var(--cdp-bg)] shadow-[var(--cdp-shadow)]";
+  "cdp max-w-full overflow-hidden rounded-[13px] bg-[var(--cdp-bg)] shadow-[var(--cdp-shadow)]";
 
 export function DateTimeDemo() {
   const [value, setValue] = useValue();
@@ -161,7 +161,7 @@ export function DisabledDemo() {
 export function TintDemo() {
   return (
     <Preview>
-      <div style={{ "--cdp-tint": "#ff375f" } as React.CSSProperties}>
+      <div className="max-w-full" style={{ "--cdp-tint": "#ff375f" } as React.CSSProperties}>
         <DateTimePicker
           mode="date"
           display="inline"
@@ -178,10 +178,10 @@ export function PanelsDemo() {
   return (
     <Preview>
       <div className={panelClass}>
-        <CalendarPanel value={value} onChange={setValue} />
+        <CalendarPanel value={value} onChange={setValue} className="max-w-full" />
       </div>
       <div className={panelClass}>
-        <TimePanel value={value ?? nineThirty()} onChange={setValue} />
+        <TimePanel value={value ?? nineThirty()} onChange={setValue} className="max-w-full" />
       </div>
     </Preview>
   );
@@ -192,7 +192,7 @@ export function FieldOnlyDemo() {
   return (
     <Preview>
       <div className={panelClass}>
-        <TimePanel value={value} onChange={setValue} wheels={false} />
+        <TimePanel value={value} onChange={setValue} wheels={false} className="max-w-full" />
       </div>
     </Preview>
   );

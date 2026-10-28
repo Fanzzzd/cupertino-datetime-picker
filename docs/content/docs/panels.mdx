@@ -20,11 +20,16 @@ import { TimePanel } from "@/components/ui/cupertino/time-panel";
 Neither panel draws a background. Give the container the `cdp` class (font
 and label colour), `bg-[var(--cdp-bg)]`, and the corners and shadow you want.
 
+Each panel is at most the screen width less 16px. Laid out in a narrower
+container, pass `className="max-w-full"` and give the container `max-w-full`
+too, and the panel narrows to fit; the day cells shrink with it. In a
+popover, leave it off.
+
 ## CalendarPanel
 
 The iOS inline calendar. The month title opens month and year wheels over the
 grid; next and previous slide the month in; a horizontal swipe changes month;
-the keyboard walks the grid. The panel is 336px wide, with 40px day cells.
+the keyboard walks the grid. The panel is 336px wide, with day cells up to 40px.
 
 | Prop          | Type                           | Default              |                                                       |
 | ------------- | ------------------------------ | -------------------- | ----------------------------------------------------- |

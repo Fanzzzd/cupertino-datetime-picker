@@ -243,7 +243,10 @@ export function TimePanel({
 
   return (
     <div
-      className={cn("cdp flex w-[280px] flex-col gap-2 p-3 select-none", className)}
+      className={cn(
+        "cdp flex w-[280px] max-w-[calc(100vw-16px)] flex-col gap-2 p-3 select-none",
+        className,
+      )}
       data-slot="time"
     >
       <div className="flex items-center justify-between gap-3">

@@ -54,6 +54,8 @@ export default defineConfig({
     ],
     // The library source lives outside this package; both must share one React.
     dedupe: ["react", "react-dom", "@base-ui/react"],
+    // `@/` and the other tsconfig paths, in dev as in the build.
+    tsconfigPaths: true,
   },
   plugins: [
     mdx(),

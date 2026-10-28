@@ -671,6 +671,19 @@ test("on a 320px screen the calendar fits", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
 
+test("in a container narrower than the panel, the inline calendar shrinks and the page does not scroll sideways", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 280, height: 640 });
+  await open(page);
+  const inline = page.locator('[data-display="inline"]');
+  await inline.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(280);
+  const panel = (await inline.locator('[data-slot="calendar"]').boundingBox())!;
+  const last = (await inline.getByRole("gridcell", { name: /September 26, 2026/ }).boundingBox())!;
+  expect(last.x + last.width).toBeLessThanOrEqual(panel.x + panel.width);
+});
+
 test("typed minutes land on the minute interval", async ({ page }) => {
   await open(page);
   const every5 = page.locator('[data-slot="date-time-picker"]').nth(3);

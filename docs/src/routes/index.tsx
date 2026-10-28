@@ -48,8 +48,8 @@ function Home() {
           library.
         </p>
 
-        <div className="mt-12 flex justify-center">
-          <ClientOnly fallback={<div className="h-[440px] w-[336px]" aria-hidden />}>
+        <div className="mt-12 flex w-full justify-center">
+          <ClientOnly fallback={<div className="h-[440px] w-[336px] max-w-full" aria-hidden />}>
             <Hero />
           </ClientOnly>
         </div>
