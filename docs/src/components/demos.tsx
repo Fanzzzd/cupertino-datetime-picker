@@ -135,7 +135,7 @@ export function IntervalDemo() {
 }
 
 export function RangeDemo() {
-  const today = startOfDay(new Date());
+  const [today] = React.useState(() => startOfDay(new Date()));
   return (
     <Preview>
       <DateTimePicker

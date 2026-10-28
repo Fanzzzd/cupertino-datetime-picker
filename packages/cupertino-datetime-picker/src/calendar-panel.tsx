@@ -92,7 +92,8 @@ export function CalendarPanel({
   const browserLocale = useBrowserLocale();
   const locale = localeProp ?? browserLocale;
   const title = React.useRef<HTMLButtonElement>(null);
-  const today = todayProp ?? startOfDay(new Date());
+  const [thisDay] = React.useState(() => startOfDay(new Date()));
+  const today = todayProp ?? thisDay;
   const weekStart = weekStartFor(locale);
   const [view, setView] = React.useState<YearMonth>(() =>
     clampMonth(yearMonthOf(value ?? today), min, max),

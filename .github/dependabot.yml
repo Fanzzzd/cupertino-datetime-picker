@@ -46,6 +46,9 @@ updates:
       - dependency-name: "@types/node"
         update-types:
           - version-update:semver-major
+      # tsdown 0.23.2 builds declarations with rolldown-plugin-dts 0.29 beta,
+      # which needs TypeScript 6 or isolatedDeclarations. Bump it by hand.
+      - dependency-name: tsdown
 
   - package-ecosystem: github-actions
     directory: /

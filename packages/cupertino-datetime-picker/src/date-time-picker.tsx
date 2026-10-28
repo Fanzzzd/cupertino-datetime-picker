@@ -100,7 +100,8 @@ export const DateTimePicker = React.memo(function DateTimePicker({
   const showDate = mode !== "time";
   const showTime = mode !== "date";
   // Panels always have something to edit; a picked day or time starts from now.
-  const draft = value ?? new Date();
+  const [now] = React.useState(() => new Date());
+  const draft = value ?? now;
   const dateLabel = labels?.date ?? "Date";
   const timeLabel = labels?.time ?? "Time";
   const year = draft.getFullYear();
