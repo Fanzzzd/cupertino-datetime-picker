@@ -1,5 +1,11 @@
 # cupertino-datetime-picker
 
+## 0.1.5
+
+### Patch Changes
+
+- [`0949784`](https://github.com/Fanzzzd/cupertino-datetime-picker/commit/094978492401bd2d731d1bf6120439bda0091c0c) Thanks [@Fanzzzd](https://github.com/Fanzzzd)! - An inline picker in a container narrower than 336px narrows to fit, and the page no longer scrolls sideways on a small phone. Day cells shrink below 40px when they have to, and the month title stays on one line. `CalendarPanel` and `TimePanel` on their own take `className="max-w-full"` for the same layout.
+
 ## 0.1.4
 
 ### Patch Changes
