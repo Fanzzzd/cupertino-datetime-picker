@@ -67,21 +67,21 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@base-ui/react": "1.9.0",
-    "@playwright/test": "1.64.1",
-    "@tailwindcss/vite": "4.3.3",
+    "@playwright/test": "1.65.0",
+    "@tailwindcss/vite": "4.3.4",
     "@types/node": "^24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@vitejs/plugin-react": "6.1.2",
+    "@vitejs/plugin-react": "6.2.1",
     "publint": "^0.3.25",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "shadcn": "4.22.1",
-    "tailwindcss": "4.3.3",
+    "shadcn": "4.23.0",
+    "tailwindcss": "4.3.4",
     "tsdown": "0.23.0",
     "typescript": "^7.0.2",
-    "vite": "8.3.5",
-    "vitest": "5.0.5"
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
   },
   "peerDependencies": {
     "@base-ui/react": ">=1.4.0",
